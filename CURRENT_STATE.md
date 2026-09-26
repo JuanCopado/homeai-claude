@@ -1,0 +1,375 @@
+# CURRENT_STATE.md — estado vivo del proyecto
+
+> El coordinador actualiza este archivo al terminar cada tarea (qué se hizo, qué
+> queda pendiente, qué deuda nueva se detectó). Es lo primero que debe leer
+> cualquier agente antes de tocar nada. Última actualización: **2026-09-26**
+> (auditoría técnica y funcional completa + Digital Home Twin fases 1-3 +
+> investigación de proveedores de IA + implementación de dos opciones
+> gratuitas/locales — orquestador WebLLM y generación de interiores con
+> Stable Diffusion en navegador — ver secciones dedicadas abajo).
+
+## Hecho
+
+- **Opciones gratuitas/locales de IA (2026-09-26): implementadas dos de las
+  tres, la tercera bloqueada por seguridad del entorno de desarrollo — sin
+  comprometer proveedores de pago.** Juan pidió explícitamente implementar
+  las alternativas gratuitas de `PROVEEDORES_IA.md` ("las tres a la vez").
+  Resultado, honesto sobre lo que se pudo y lo que no:
+  - **Orquestador de lenguaje natural (`ai-orchestrator.js`/`.css`)**:
+    implementado con WebLLM (`@mlc-ai/web-llm`, modelo
+    `Llama-3.2-3B-Instruct-q4f16_1-MLC`), cargado bajo demanda desde CDN
+    exactamente como `loadTesseract()` — nada se descarga hasta que el
+    usuario pulsa el botón en la vista de Presupuesto. Solo lee `project`
+    (rooms/costs/style) como contexto; su salida es texto de solo lectura,
+    nunca escribe presupuesto ni geometría. Degrada con gracia sin WebGPU o
+    si falla la carga. **Verificado con Playwright antes del corte de
+    herramientas descrito abajo**: la tarjeta se inyecta en el sitio
+    correcto, un envío vacío da toast sin romper nada, y se confirmó por
+    separado que el módulo de `@mlc-ai/web-llm` sí carga desde el CDN y
+    expone `CreateMLCEngine` tal como se usa en el código.
+  - **Generación de interiores (`ai-interior-preview.js`/`.css`)**:
+    implementado con `@aislamov/diffusers.js` (Stable Diffusion 2.1 base,
+    ONNX+WebGPU, MIT), en la vista de Diseño. **Alcance reducido a propósito
+    y declarado en el propio código**: genera una imagen de inspiración a
+    partir de texto (texto→imagen), NO parte de la foto real del usuario ni
+    la modifica — la vía correcta para eso sería imagen→imagen o ControlNet,
+    cuya forma exacta de API en esta librería no se pudo verificar de forma
+    fiable (la documentación pública no la cubre y las herramientas de
+    búsqueda de esta sesión llegaron a su límite antes de confirmarla). Se
+    prefirió no adivinar esa llamada y arriesgarse a algo roto o engañoso.
+    La función que interpreta la salida del modelo (`imageResultToUrl()`)
+    es deliberadamente defensiva (prueba varias formas conocidas de salida)
+    en vez de asumir una sola, por la misma razón.
+  - **Detección de planos con un modelo de visión real (ONNX en navegador)**:
+    investigado y NO implementado. Existe un modelo real, gratuito y
+    usable — `floor-plan-object-detection` (YOLOv8, licencia MIT, pesos
+    `best.pt` descargables, detecta exactamente columnas/muros/puertas/
+    ventanas/persianas/escaleras) — pero convertirlo a ONNX exige descargar
+    y ejecutar ese checkpoint de PyTorch de un repositorio de terceros
+    (deserialización de pickle) e instalar el toolchain necesario
+    (`ultralytics`/`torch`). El clasificador de seguridad de este entorno
+    sandboxed lo bloqueó dos veces como "Code from External" — un riesgo
+    real (un `.pt` puede ejecutar código arbitrario al cargarse) que no se
+    debe ni se puede rodear desde aquí. Camino exacto documentado en
+    `PROVEEDORES_IA.md` para que Juan lo haga en un entorno que él controle
+    y entregue solo el `.onnx` resultante, que sí se integraría aquí sin
+    problema (es un archivo de datos, no código a ejecutar).
+  - **Otros cambios de soporte**: `sw.js` (`FILES`) actualizado para
+    precachear los cuatro archivos nuevos, con bump de versión de caché
+    (`homeai-studio-v18`) para que los usuarios que ya instalaron la PWA
+    reciban la actualización; `eslint.config.mjs` con `budgetTotal` añadido
+    a `crossFileGlobals` (usado por `ai-orchestrator.js`).
+  - **Verificación completa (retomada tras una interrupción temporal de las
+    herramientas de ejecución del agente, ya resuelta)**: `npm run
+    lint:js` → 0 errores (se corrigieron 2 reales en
+    `ai-interior-preview.js`: `HTMLCanvasElement`/`ImageData` no estaban
+    declarados como globals del navegador en `eslint.config.mjs`, y un
+    `catch(e)` con variable sin usar); `npm run lint:css` → mismos 70
+    errores preexistentes de siempre (los dos CSS nuevos no añaden
+    ninguno); `npm test` → sin regresión; `node build.mjs` → los cuatro
+    archivos nuevos llegan a `dist/`. Barrido Playwright: las dos tarjetas
+    se inyectan en la vista correcta (`#view-budget` y `#view-design`,
+    esta última justo después de "Diseños guardados por estancia"), un
+    envío vacío en cualquiera de las dos da un toast sin romper nada, y se
+    recorrieron las 7 vistas de la app sin un solo error de consola. Se
+    confirmó además, por separado, que **ambos módulos cargan de verdad
+    desde jsdelivr** y exponen exactamente las funciones que el código
+    usa: `@mlc-ai/web-llm` expone `CreateMLCEngine`; `@aislamov/diffusers.js`
+    expone `DiffusionPipeline.fromPretrained` — y, dato relevante, **no
+    expone ningún `StableDiffusionControlNetPipeline`** en su build actual,
+    lo que confirma que la decisión de no implementar imagen→imagen/
+    ControlNet en la primera versión (sección de arriba) era la correcta,
+    no solo la prudente.
+
+- **Digital Home Twin, fase 3 implementada y verificada: presupuesto conectado
+  a los huecos detectados.** Hallazgo honesto primero: la longitud de pared
+  que ya usa el presupuesto (`calculateWallLength()`) **no necesitaba
+  "descontar" los huecos** — como se calcula sumando solo los segmentos de
+  pared que `detectWalls()` encontró, y un hueco es precisamente la ausencia
+  de un segmento ahí, la superficie de pintura y la longitud de zócalos ya
+  excluían las puertas de forma correcta desde el principio (no había nada
+  que arreglar). Lo que sí faltaba y sí aporta valor real: una partida propia
+  para las aberturas. `costQuantity()` añade `qtyType:'openings'` →
+  `wallOpenings.length`; `freshProject()` añade una fila por defecto "Puertas
+  y aberturas detectadas" (unidad, cantidad = huecos detectados) — solo para
+  proyectos nuevos, sin tocar los ya guardados. **Verificado**: `npm run
+  lint`/`npm test`/`node build.mjs` limpios, un script Playwright confirma que
+  un proyecto nuevo con un plano con una puerta detectada calcula la partida
+  en 1 unidad, y se repitió el barrido completo de las 7 vistas más los tres
+  scripts de verificación de las fases 1 y 2 — sin regresiones.
+  - **Nota honesta sobre lo que sigue** (no se avanzó más, ver "Pendiente"):
+    las fases que quedan del plan de Juan (visión real sobre fotos/vídeo,
+    generación de interiores por lenguaje natural, un orquestador que
+    entienda frases libres como "tengo 25.000€...") necesitan todas un
+    LLM/API de visión externo — proveedor, credenciales y coste que no
+    existen en este entorno y que no se deben comprometer sin que Juan lo
+    apruebe explícitamente (implica dinero real y una promesa de privacidad
+    que hoy dice "nada sale del dispositivo"). Un recomendador basado en
+    reglas fijas (sin LLM) sería técnicamente posible, pero es una función
+    nueva de tamaño considerable (formulario de presupuesto/familia/
+    preferencias, generación de 3 alternativas) — no una mejora incremental
+    sobre código existente como las tres fases anteriores, así que no se
+    empezó sin que Juan la revise primero.
+- **Digital Home Twin, fase 2 implementada y verificada: detección de huecos
+  (puertas/ventanas).** `planner-geometry.js` añade `detectOpenings()`: dentro
+  de una misma línea de pared ya detectada, un hueco de anchura plausible
+  (0.5–1.6 m por defecto, configurable) entre dos segmentos es candidato a
+  apertura. Es puramente geométrico (sin canvas, sin ML) y **deliberadamente
+  no distingue puerta de ventana** — eso necesitaría leer el símbolo real del
+  plano (arco de puerta vs. líneas paralelas) o visión de verdad, así que se
+  devuelve genéricamente como `kind:'opening'` con su propio `confidence`,
+  para no prometer más precisión de la que hay (mismo criterio de honestidad
+  que ya se aplicó al etiquetar `detectWalls()`/`analyzeLines()` como
+  heurísticas, no como IA). En `app.js`, `detectWallOpenings()` (llamada desde
+  `detectWalls()` y desde los dos manejadores de edición manual de muros)
+  guarda el resultado en `wallOpenings`; `renderWallEditor()` lo dibuja como
+  una línea discontinua morada sobre el hueco detectado, distinta de las
+  paredes (naranja detectadas, verde manuales). **Verificado con evidencia**:
+  6 aserciones nuevas en `planner-geometry.test.cjs` (hueco plausible
+  detectado, hueco de ruido descartado, hueco demasiado grande descartado) —
+  30 en total, todas pasan; `npm run lint` en 0 errores; `node build.mjs`; un
+  script Playwright con un plano sintético con una puerta real de 0.8 m en un
+  muro divisorio confirma que se detecta exactamente ese hueco (ancho 0.81 m,
+  confianza 0.74) sin errores de consola; y se repitieron los dos scripts de
+  verificación de la fase 1 (enlace paredes-habitaciones, estático y
+  reactivo) más el barrido de las 7 vistas — mismos resultados limpios que
+  antes, sin regresiones.
+- **Digital Home Twin, fase 1 implementada y verificada: enlazar paredes a
+  habitaciones.** Antes, `project.rooms` (medidas) y `wallSegments` (paredes
+  detectadas por `detectWalls()`) eran dos estructuras desconectadas — el 3D
+  dibujaba las paredes reales pero colocaba los nombres de habitación en una
+  cuadrícula arbitraria. Ahora:
+  - `planner-geometry.js` (pura, testeada en Node como el resto del archivo)
+    añade `computeRoomRegions()` (deriva regiones libres/candidatas a
+    habitación a partir de los segmentos de pared vía rasterizado en grid +
+    flood-fill, sin canvas y sin ML) y `matchRoomsToRegions()` (empareja cada
+    `project.room` con la región de área más parecida, con `confidence` según
+    lo ajustado que sea el emparejamiento).
+  - `app.js` añade `linkRoomsToWalls()`, llamada desde `detectWalls()` y desde
+    los dos manejadores de edición manual de muros. Marca cada resultado como
+    `room.wallRegion = {..., source:'vision-heuristic', confidence, verified:false}`
+    — generaliza el mismo patrón `verified`/`source` que `project.rooms` ya
+    usaba para el OCR. Si el enlace falla o no hay plano/habitaciones, no
+    rompe nada: se borra `wallRegion` y el render cae al comportamiento
+    anterior (cuadrícula).
+  - `renderModel()` usa `room.wallRegion.cx/cy` para colocar el nombre de cada
+    habitación en su posición real cuando existe; si no, usa la cuadrícula de
+    siempre (fallback intacto, cero regresión para proyectos sin plano).
+  - **Verificado con evidencia**: `npm test` (25 aserciones en
+    `planner-geometry.test.cjs`, incluida la geometría nueva, más los tests
+    existentes de `design-state.test.mjs`), `npm run lint` (0 errores, mismos
+    70 de CSS y mismos warnings de siempre), `node build.mjs`, un script
+    Playwright con un plano sintético de 2 habitaciones que confirma que cada
+    una liga con su mitad real del plano (sin excepciones ni errores de
+    consola), y un barrido de regresión de las 7 vistas + interacciones
+    (0 errores de consola, 0 peticiones fallidas — igual que antes del
+    cambio).
+  - **Cerrado (2026-09-26, a petición de Juan de no dejarlo fuera)**: el
+    enlace ahora también se recalcula al editar el ancho/largo de una
+    habitación (`renderRooms()`), al confirmar su medida ("Confirmar"), al
+    añadir una estancia (`addRoom()`/`createDesignRoom()`), al eliminarla
+    (`data-remove-room`) y al fusionar medidas nuevas del OCR
+    (`analyzePlan()`) — no solo tras detectar o editar paredes. Se hizo con
+    cuidado de **no** forzar además un `renderModel()` nuevo en los sitios
+    donde antes no lo había (`createDesignRoom`, `addRoom`, "Confirmar",
+    `analyzePlan`): el primer intento sí lo añadía y rompió
+    `tests/design-state.test.mjs` (su entorno de prueba simula el DOM con un
+    canvas sin `getBoundingClientRect`, y ese test llama a `createDesignRoom()`
+    directamente) — corregido dejando solo `linkRoomsToWalls()` en esos
+    puntos; la posición se refresca en el próximo render natural (cambiar de
+    vista, redimensionar, o los puntos que ya llamaban a `renderModel()` antes
+    de este cambio, como borrar una habitación). Reverificado con Playwright:
+    dos habitaciones sin medir empiezan con enlace de baja confianza (0.25,
+    emparejamiento por descarte) y, tras escribir sus medidas reales sin
+    volver a cargar el plano, `linkRoomsToWalls()` las reubica correctamente
+    en su mitad real (confianza ~0.47/0.46, igual que si la medida hubiera
+    estado desde el principio) — sin errores de consola. `npm test`,
+    `npm run lint` y el barrido de las 7 vistas siguen limpios.
+  - Detalle completo de diseño en `DIGITAL_TWIN_ARCHITECTURE.md`.
+- **Diseño de arquitectura "Digital Home Twin"** (`DIGITAL_TWIN_ARCHITECTURE.md`,
+  solo diseño, sin código de producto): responde a la visión de Juan de un
+  módulo de visión + interpretación de planos + gemelo digital + 3D +
+  generación de interiores + presupuesto + recomendador + agentes internos.
+  Hallazgo clave que fundamenta el diseño: `project.rooms` (medidas) y
+  `wallSegments` (paredes detectadas por `detectWalls()`) son hoy **dos
+  estructuras desconectadas** — el 3D dibuja las paredes reales pero coloca
+  los nombres de habitación en una cuadrícula arbitraria, no en su posición
+  real. El documento propone `project.twin` (aditivo, retrocompatible),
+  generaliza a paredes/puertas/ventanas el patrón `verified`/`source` que
+  `project.rooms` ya usa, separa capa técnica (geometría verificada) de capa
+  generativa (estilo/decoración) para que la IA nunca pise la geometría en
+  silencio, y da una hoja de ruta en fases marcando explícitamente cuál es la
+  única que exige backend/coste externo (visión real sobre fotos/vídeo). Nada
+  de esto se ha implementado todavía — es la base para decidir por dónde
+  empezar.
+- **3 bugs corregidos** (auditoría inicial, sesión 2026-09-25/26):
+  1. "Probar con un ejemplo" en el estudio fotográfico no cargaba la imagen de
+     muestra (`photo-studio.js`, validación de tipo MIME del blob).
+  2. Moneda por defecto del presupuesto fija en COP para cualquier usuario
+     (`app.js`, ahora `defaultCurrency()` según región del navegador).
+  3. Barra de calibración de escala en Plano se veía apretada/rota entre 600 y
+     1200px de ancho (`workspace-v17.css`, `flex-wrap` solo estaba activo bajo
+     600px).
+  - Detalle completo con causa/arreglo/verificación en `CHANGELOG_CLAUDE.md`.
+- **Auditoría de las 9 hojas de CSS**: documentada en `CSS_AUDIT.md`. Conclusión:
+  el patrón de "capas por versión" es intencional; no se fusionaron a ciegas. Se
+  hizo un barrido visual (Playwright, 7 vistas × 3 anchos) que no encontró más
+  bugs de layout aparte del ya corregido.
+- **ESLint + Stylelint añadidos** (`eslint.config.mjs`, `.stylelintrc.json`,
+  scripts `npm run lint:js` / `lint:css` / `lint` / `test`). Configurados a medida
+  del proyecto (globals cross-file explícitas, reglas de CSS centradas en errores
+  reales, no en formato). Ya encontraron un bug real al ejecutarse por primera
+  vez: `font:600 15px/1.3 inherit` en `workspace-v17.css` es un atajo `font`
+  inválido (el navegador lo descartaba entero); corregido separando en
+  `font-weight`/`font-size`/`line-height`.
+- **Restaurar copia de seguridad (.JSON)**: ya existía exportar el proyecto a
+  JSON pero no había forma de restaurarlo. Añadido botón en el modal de Exportar
+  (`app.js`, función `importProjectFromFile`), con validación de formato y
+  confirmación explícita antes de sustituir el proyecto activo. Verificado con
+  Playwright (exportar → mutar → restaurar → vuelve al estado original;
+  un archivo inválido no toca el proyecto).
+- Todo lo anterior está comiteado en el repo local (ver `git log` para el hash
+  exacto; dos commits: importación del código real + fixes, y esta segunda
+  tanda de auditoría/lint/backup).
+- Sistema multi-agente creado: este archivo, `AGENTS.md`, `PROJECT.md` y los 6
+  agentes en `.claude/agents/`.
+
+## Hallazgos de la auditoría técnica y funcional (2026-09-26)
+
+Auditoría completa (no refactor) usando los 4 subagentes (architect, ux-ui,
+ai-engineer, security) más ejecución directa: `npm test` (pasa), `npm run
+lint` (0 errores JS, los mismos 70 errores CSS ya conocidos y documentados),
+`node build.mjs`, barrido Playwright de consola/red en las 7 vistas (0 errores
+de consola, 0 peticiones fallidas, 0 respuestas 4xx/5xx), y revisión directa de
+`manifest.webmanifest`, `sw.js`, `index.html`. Detalle completo en el doc
+"HomeAI — Auditoría y plan de mejora" (Claude Docs). Resumen aquí:
+
+- **Seguridad (prioridad alta, único hallazgo nuevo con riesgo real)**: el flujo
+  de restaurar copia de seguridad (`importProjectFromFile` en `app.js`) valida
+  forma mínima (`rooms`/`tasks` como arrays) pero no el contenido:
+  1. Un JSON restaurado puede traer un documento con `src`/`href` tipo
+     `javascript:...`, que `renderDocs()` vuelca a `innerHTML` — XSS si el
+     usuario abre un backup de origen no confiable.
+  2. La validación de tipos dentro de cada objeto (no solo la forma del array)
+     es insuficiente: un backup malformado puede corromper `localStorage` antes
+     de que la UI pueda rechazarlo (efecto "auto-DoS").
+  Ambos son arreglos acotados en `importProjectFromFile`/`renderDocs`, no
+  requieren tocar arquitectura.
+- **Arquitectura y calidad de código**: confirmado que la cadena de "monkey
+  patch" sobre `renderDesign`/`renderFinishList`/`goView`/`renderOverview`
+  (4/3/2/1 reasignaciones respectivamente, ver `PROJECT.md`) sigue funcionando
+  hoy sin roturas, pero no hay lint ni test que la proteja si un archivo nuevo
+  rompe el orden de carga en `index.html`. Deuda de los 70 selectores
+  duplicados en `styles.css` sigue igual (ver abajo). Código muerto confirmado
+  (`on()` en `app.js`) y una variable sin usar en `exportObj()` — limpieza
+  trivial, sin riesgo.
+- **UX, accesibilidad y SEO**: PWA con un solo icono SVG "any maskable" —
+  funciona en Android pero iOS/Safari no lee el manifest para "Añadir a
+  pantalla de inicio" y necesita un `apple-touch-icon` PNG explícito (defecto
+  real, no teórico, arreglo acotado). Sin meta `og:*` ni `canonical`. Sin
+  auditoría de accesibilidad dedicada más allá del barrido responsive
+  existente (pendiente revisar contraste, `tabindex`, etiquetas de formulario).
+- **PWA/rendimiento**: `sw.js` precachea 30 archivos de forma atómica
+  (`cache.addAll`) — si uno falla, falla la instalación completa del Service
+  Worker; incluye ~2MB de imágenes de ejemplo no usadas en el flujo real.
+- **Oportunidades de IA (evaluación honesta)**: hoy "IA" en HomeAI es 100%
+  local — OCR con Tesseract.js (esto sí es ML real), detección de muros por
+  heurística de contraste de píxeles (no es un modelo, aunque se presente como
+  "IA" en la UI) y maqueta 3D por extrusión conceptual (tampoco es un modelo).
+  Margen real de mejora a corto plazo: tolerancia del parser de OCR (regex
+  única, frágil) y separar en la UI lo que es heurística determinista de lo que
+  sería IA real, para no sobre-prometer. Una función como "plano → propuesta de
+  reforma 3D generada" es un proyecto grande y costoso (modelo de visión +
+  posible servicio remoto con coste/latencia), no una mejora incremental —
+  requiere decisión de producto explícita antes de empezar.
+- **Nada roto**: no se encontraron regresiones de las últimas dos sesiones;
+  `npm test`, `npm run lint` y el barrido de consola están limpios salvo la
+  deuda ya conocida.
+
+## Deuda conocida (documentada, no resuelta)
+
+- `styles.css` tiene 70 selectores duplicados dentro del propio archivo
+  (detectados por `stylelint`, listados en `CSS_AUDIT.md`). No se tocaron por el
+  riesgo de editar a ciegas un archivo de 83KB en una sola línea sin poder
+  confirmar visualmente cuál versión es la vigente en cada caso.
+- No hay CI configurado; toda la verificación (`npm test`, `npm run lint`,
+  barrido visual con Playwright) se hace manualmente en cada sesión.
+- No se ha hecho una auditoría de accesibilidad dedicada (solo lo que ya cubre
+  el barrido visual/responsive).
+- La detección de muros y la maqueta 3D son heurísticas simples (contraste de
+  píxeles + extrusión 2D), no un modelo de visión ni un motor 3D real — ver
+  `PROJECT.md`. Cualquier mejora real de precisión es una tarea grande para
+  AI Engineer + Architect juntos, no un ajuste rápido.
+
+## Pendiente
+
+- **Digital Home Twin — hasta dónde se pudo llegar en local (2026-09-26)** (ver
+  `DIGITAL_TWIN_ARCHITECTURE.md`): ligar paredes a habitaciones, detectar
+  huecos y conectarlos al presupuesto ya están hechos y verificados (ver
+  "Hecho") — es todo lo que el plan de 8 puntos de Juan permite avanzar sin
+  introducir un backend ni depender de un proveedor externo de pago. Lo que
+  queda **no es un siguiente paso técnico de esta misma naturaleza**, sino
+  una decisión de producto real que solo Juan puede tomar:
+  1. **Visión real** (fotos/vídeo/croquis/capturas inmobiliarias), **generación
+     de interiores por lenguaje natural** y un **orquestador que entienda
+     frases libres** ("tengo 25.000€, somos 4...") necesitan todas un LLM o
+     una API de visión externa — proveedor, credenciales y coste real que hoy
+     no existen en el proyecto ni en este entorno, y que cambiarían la
+     promesa actual del `README.md` ("nada sale del dispositivo"). No se
+     implementó nada de esto ni se eligió proveedor por cuenta propia.
+  2. Distinguir puerta de ventana de verdad necesitaría lo mismo (leer el
+     símbolo del plano o visión real) — por eso `kind` sigue siendo
+     `'opening'` genérico.
+  3. Un **recomendador por reglas fijas** (presupuesto + familia +
+     preferencias → 3 alternativas) sí sería técnicamente posible sin LLM,
+     pero es una función nueva de tamaño considerable (formulario nuevo,
+     generación de alternativas) y no una mejora incremental sobre código
+     existente como las tres fases ya hechas — se dejó documentada aquí en
+     vez de construirla sin que Juan la revise primero, para no convertir un
+     cambio incremental en la reconstrucción que pidió evitar desde el
+     principio.
+- **Subir estos cambios a GitHub** (`https://github.com/JuanCopado/HOMEAI.git`):
+  tiene que hacerlo Juan manualmente (`git remote add origin ...` + `git push`),
+  ningún agente puede hacerlo desde este entorno (sin credenciales de git que
+  funcionen aquí).
+- **Siguiente trabajo recomendado (plan incremental, pendiente de que Juan dé
+  luz verde a cuál atacar primero)** — orden por impacto/dependencia, no por
+  puntuación:
+  1. **Sin dependencias, bajo riesgo — se puede hacer ya**: arreglar las dos
+     vulnerabilidades de seguridad en restaurar backup (validar/rechazar
+     esquema `javascript:` en `src`/`href` antes de `innerHTML`, y endurecer la
+     validación de tipos por objeto, no solo la forma del array); añadir
+     `apple-touch-icon` PNG para iOS; limpiar código muerto (`on()` en
+     `app.js`, variable sin usar en `exportObj()`).
+  2. **Requiere red de seguridad primero (barrido visual + test manual antes y
+     después, no tocar a ciegas)**: separar la precarga atómica del Service
+     Worker de las imágenes de ejemplo no usadas; dar más tolerancia al parser
+     de OCR de medidas; revisar contraste/`tabindex`/etiquetas de formulario
+     como primera pasada real de accesibilidad; considerar (sin decidir aún)
+     empezar a fusionar los 70 selectores duplicados de `styles.css`, archivo
+     por archivo, con verificación visual en cada paso.
+  3. **Decisión de producto, no técnica**: si merece la pena separar en la UI
+     lo que hoy se llama "IA" (heurísticas locales deterministas) de lo que
+     sería IA real, para no sobre-prometer; y si se quiere explorar una función
+     tipo "plano → propuesta de reforma 3D" — grande, cara, con dependencia de
+     un modelo de visión y posiblemente un servicio remoto (coste/latencia) —
+     antes de comprometerse hace falta que Juan decida alcance y presupuesto.
+- **Investigación de proveedores/precios de IA (2026-09-26)**: Juan pidió
+  buscar alternativas de proveedores y precios para implementar las fases que
+  faltan (visión real, generación de interiores, orquestador de lenguaje
+  natural), incluyendo explícitamente opciones gratuitas y "hazlo tú con
+  esfuerzo", no solo APIs comerciales. Resultado documentado en
+  `PROVEEDORES_IA.md`: tabla comparativa de precios reales (Anthropic, Google
+  Gemini, OpenAI, AWS Rekognition, Azure AI Vision, CubiCasa, Roboflow,
+  Stability AI, Replicate) frente a alternativas open-source/autoalojadas
+  (DeepFloorplan, YOLOv8 sobre floor-plan-object-detection, Stable Diffusion +
+  ControlNet local, Ollama con un LLM local). Hallazgo más importante, que no
+  estaba planteado antes de investigar: como HomeAI no tiene backend hoy,
+  cualquier proveedor de pago exige decidir primero dónde vive la clave de
+  API (backend propio nuevo, clave del propio usuario en su navegador, o
+  quedarse en opciones 100% locales) — es una decisión de arquitectura previa
+  a "qué proveedor", y sigue sin resolver. No se ha implementado ni
+  comprometido ningún proveedor; es solo la base de datos para que Juan
+  decida con cifras reales delante.
+- Nada más en cola por ahora — la próxima tarea la decide el coordinador según lo
+  que pida Juan, releyendo este archivo primero.
