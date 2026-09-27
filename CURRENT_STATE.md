@@ -102,7 +102,16 @@
     servicio sin `/api/style` (404), generación con un estilo sugerido, sin
     errores de consola; regresión de zonas, foto entera y 7 vistas. Código de
     producción con CLIP real en GitHub Actions: `validation/results_style_server/`.
-  - Pendiente (en cola tras esto): filtro de calidad con varias variantes.
+    Resultado con CLIP real (`validation/results_style_server/report.md`):
+    **12/12 correctos, 0 sugerencias incorrectas** (5 estilos acertados; 4
+    exteriores, 2 vacías y 1 dudosa sin sugerencia y con su motivo).
+  - **En cola, en este orden:** (1) filtro de calidad con varias variantes
+    (medir primero con 2); (2) investigación de reconstrucción 3D de
+    habitaciones a partir de fotos (una foto vs. varias/vídeo; licencia,
+    cómputo, formato y visor web, madurez, especialización en interiores;
+    probar 2-3 con fotos reales; tabla y recomendación para la Fase 0 del
+    recorrido virtual). Aviso: este entorno no tiene GPU; las pruebas irían
+    por GitHub Actions (CPU) o Spaces públicos.
 
 - **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
   (`server/validation/`, workflow `validate-segmentation.yml`, rama
