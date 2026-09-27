@@ -1,0 +1,33 @@
+.ai-reno-card{margin-top:14px}
+.ai-reno-body{margin-top:12px;display:grid;gap:12px}
+.ai-reno-off{background:#fbf6ea;border:1px solid #efe3c4;border-radius:8px;padding:10px 12px;font-size:11px;color:#6b5a2e;line-height:1.5}
+.ai-reno-step{display:flex;gap:10px;align-items:flex-start}
+.ai-reno-num{flex:none;width:22px;height:22px;border-radius:50%;background:#e8eee8;color:#285541;font-size:11px;font-weight:700;display:grid;place-items:center}
+.ai-reno-step-body{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ai-reno-step-body .ai-orch-input{min-height:52px}
+.ai-reno-upload{cursor:pointer}
+.ai-reno-hint{font-size:10px;color:#79847a;overflow-wrap:anywhere}
+.ai-reno-thumb{width:100%;max-width:240px;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.ai-reno-chips{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.ai-reno-chip{border:1px solid var(--line);background:#fbfcfa;color:#39443d;border-radius:999px;padding:6px 11px;font:inherit;font-size:11px;cursor:pointer;min-height:32px}
+.ai-reno-chip:hover{border-color:#b9c9bb}
+.ai-reno-chip[aria-pressed="true"]{background:#285541;border-color:#285541;color:#fff}
+.ai-reno-chip:focus-visible,.ai-reno-consent input:focus-visible,.ai-reno-range input:focus-visible{outline:2px solid #285541;outline-offset:2px}
+.ai-reno-range{display:flex;align-items:center;gap:8px;font-size:10px;color:#79847a;width:100%}
+.ai-reno-range input{flex:1;min-width:80px;accent-color:#285541}
+.ai-reno-consent{display:flex;gap:8px;align-items:flex-start;font-size:10px;line-height:1.5;color:#5d685f;background:#f7f8f5;border:1px solid #edf0ea;border-radius:8px;padding:9px 11px}
+.ai-reno-consent input{margin-top:2px;accent-color:#285541;flex:none}
+.ai-reno-wait{display:flex;align-items:center;gap:10px;font-size:11px;color:#5d685f;background:#f7f8f5;border-radius:8px;padding:12px}
+.ai-reno-wait i{width:16px;height:16px;border-radius:50%;border:2px solid #cfd9cf;border-top-color:#285541;animation:ai-reno-spin .9s linear infinite;flex:none}
+@keyframes ai-reno-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.ai-reno-wait i{animation:none}}
+.ai-reno-result small{max-width:720px;display:block;margin-top:6px;color:#8a938b;font-size:9px}
+.ai-reno-compare{position:relative;max-width:720px;max-height:70vh;border-radius:10px;overflow:hidden;background:#f1f2ee;line-height:0;user-select:none}
+.ai-reno-compare img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ai-reno-before{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--pos)) 0 0)}
+.ai-reno-compare::after{content:"";position:absolute;top:0;bottom:0;left:var(--pos);width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.35);pointer-events:none}
+.ai-reno-compare input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}
+.ai-reno-tag{position:absolute;top:8px;font-size:9px;line-height:1;background:rgba(25,32,27,.72);color:#fff;border-radius:999px;padding:4px 8px;pointer-events:none}
+.ai-reno-tag-before{left:8px}
+.ai-reno-tag-after{right:8px}
+@media(max-width:600px){.ai-reno-range span{display:none}}

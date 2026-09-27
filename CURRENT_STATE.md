@@ -10,6 +10,56 @@
 
 ## Hecho
 
+- **Visualización de reforma con IA, fase 1 (MVP) (2026-09-27).** Foto real de
+  la estancia + estilo → la misma estancia redecorada, vía Hugging Face
+  Inference Providers (`image_to_image`). Primera función de HomeAI que envía
+  datos fuera del dispositivo; resuelve la "sección 0" de `PROVEEDORES_IA.md`
+  con la opción 1 (backend propio que guarda la clave).
+  - **Arquitectura:** no había backend, así que es un **microservicio aparte**
+    en `server/` (FastAPI + `huggingface_hub`, `Dockerfile` listo para un
+    Hugging Face Space CPU gratuito). `HF_TOKEN` solo como secreto del
+    servidor. Fase 2 prevista: `HF_MODEL` → URL de un Inference Endpoint con
+    SD + ControlNet, sin tocar el navegador.
+  - **Pipeline:** valida formato (JPG/PNG/WebP) y tamaño, aplica orientación
+    EXIF, quita metadatos, ≤1024 px múltiplo de 8, autocontraste en fotos muy
+    oscuras, prompt de estilo + sufijo "misma estancia, mismas paredes y
+    ventanas" + prompt negativo, `strength` 0,30–0,80. Errores de HF (402
+    crédito agotado, 429, 503, timeout, token inválido, modelo no servido)
+    traducidos a códigos claros. Límite por IP/hora y de concurrencia.
+  - **UX** (`ai-renovation.js`/`.css`, vista Diseño): elegir foto → estilo
+    (6 atajos o texto libre) + intensidad → consentimiento explícito →
+    espera con contador y cancelar → comparación antes/después con
+    deslizador → guardar en Archivos (IndexedDB local) / descartar / probar
+    otro estilo. Desactivada mientras
+    `<meta name="homeai-renovation-endpoint">` esté vacía.
+  - **Privacidad:** el navegador reduce y re-codifica la foto (sin EXIF/GPS)
+    antes de enviarla; el servidor no escribe nada en disco (ni temporales),
+    no registra fotos ni textos y responde `no-store`.
+  - **QA:** 32 tests `pytest` (fotos pequeñas, panorámicas, oscuras, PNG con
+    transparencia, WebP, GIF, HEIC, JPEG truncado, EXIF con GPS y rotación,
+    límites de tamaño, todos los errores de HF, rate limit, concurrencia,
+    CORS, subida que no toca disco) y Playwright con API simulada a 390 y
+    1440 px (validaciones, consentimiento, espera, resultado, guardar, 429,
+    crédito agotado, respuesta HTML, sin red, cancelar; sin errores de
+    consola ni scroll horizontal) + regresión de las 7 vistas. CI ejecuta
+    también `pytest`.
+  - **No verificado:** ninguna llamada real a Hugging Face (el proxy de este
+    entorno bloquea huggingface.co). Qué modelo sirve de verdad para
+    image-to-image hay que comprobarlo con `server/check_model.py` antes de
+    desplegar.
+
+## Pendiente de la visualización con IA
+
+- Desplegar `server/` como Space, poner `HF_TOKEN` como secreto, elegir un
+  `HF_MODEL` que `check_model.py` confirme, y poner la URL en `index.html`.
+- Revisar la política de retención del proveedor que sirva el modelo
+  (fal-ai, Replicate…) y reflejarla en el aviso de privacidad.
+- El crédito gratuito de HF da para muy pocas imágenes: para usuarios reales,
+  cuenta con facturación y tope de gasto.
+- Fase 2: ControlNet (depth/canny) en un Inference Endpoint o Space con GPU
+  para bloquear de verdad la geometría.
+
+
 - **Auditoría del repositorio y correcciones (2026-09-27).** `homeai-claude` es
   el repositorio principal (`JuanCopado/HOMEAI` es una versión anterior, sin las
   funciones de IA local ni el Digital Twin). Hallazgo principal: la subida inicial

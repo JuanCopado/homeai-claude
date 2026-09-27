@@ -8,7 +8,7 @@ Web app independiente para diseñar y planificar una reforma. El proyecto inicia
 2. Abre `http://localhost:8000`.
 3. En Safari o Chrome, usa **Añadir a pantalla de inicio / Instalar** para abrirla como app.
 
-La app funciona en móvil y escritorio. Guarda datos en el navegador de este dispositivo; no usa cuentas ni un servidor de almacenamiento.
+La app funciona en móvil y escritorio. Guarda datos en el navegador de este dispositivo; no usa cuentas ni un servidor de almacenamiento. La única excepción es **Visualiza tu reforma con IA** (ver abajo): solo si la activas y das tu consentimiento, envía una copia reducida y sin datos de ubicación de la foto a un servicio de IA externo.
 
 ## Flujo de trabajo
 
@@ -21,6 +21,14 @@ La app funciona en móvil y escritorio. Guarda datos en el navegador de este dis
 ## Alcance
 
 La lectura de etiquetas usa un modelo de OCR. La reconstrucción 3D extruye líneas detectadas en la imagen; no usa un modelo generativo de arquitectura ni resuelve automáticamente habitaciones con precisión BIM. La escala y las paredes requieren revisión. La maqueta y las cantidades son orientativas, no un levantamiento ni un presupuesto contractual. Comprueba los datos con el plano y las medidas reales antes de tomar decisiones de obra.
+
+## Visualiza tu reforma con IA (experimental)
+
+En la vista Diseño: sube una foto de la estancia, elige un estilo (o descríbelo) y compara el antes y el después con un deslizador. Puedes guardar el resultado en Archivos o descartarlo.
+
+- **Sale del dispositivo**, a diferencia del resto de HomeAI: la foto se reduce a 1024 px y se re-codifica sin EXIF/GPS en el navegador, y se envía, con tu consentimiento explícito, al servicio de HomeAI (`server/`) y de ahí a Hugging Face. No se guarda en ningún servidor; el resultado solo se guarda en este navegador si pulsas «Guardar».
+- Es una orientación visual: el modelo intenta conservar paredes, ventanas y distribución, pero puede cambiar detalles o inventar objetos.
+- Está desactivada hasta que se configura la URL del servicio en `index.html`. Despliegue, límites y privacidad: `server/README.md`.
 
 ## Estudio fotográfico y alternativas (v13)
 

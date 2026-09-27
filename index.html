@@ -2,9 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f7f7f4"><meta name="description" content="Diseña, visualiza en 3D y planifica la reforma de tu vivienda.">
+<meta name="theme-color" content="#f7f7f4"><!-- URL pública del servicio de server/ (p. ej. https://usuario-homeai-renovation.hf.space). Vacía = "Visualiza tu reforma con IA" desactivada. -->
+<meta name="homeai-renovation-endpoint" content="">
+<meta name="description" content="Diseña, visualiza en 3D y planifica la reforma de tu vivienda.">
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>HomeAI — Diseña tu hogar</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="studio.css"><link rel="stylesheet" href="studio-pro.css"><link rel="stylesheet" href="catalog-v16.css"><link rel="stylesheet" href="design-v16.css"><link rel="stylesheet" href="advisor-v16.css"><link rel="stylesheet" href="room-planner.css"><link rel="stylesheet" href="material-library.css"><link rel="stylesheet" href="workspace-v17.css"><link rel="stylesheet" href="ai-orchestrator.css"><link rel="stylesheet" href="ai-interior-preview.css">
+<link rel="stylesheet" href="ai-renovation.css">
 </head>
 <body>
 <div class="app-shell">
@@ -64,4 +67,5 @@
 <section class="view" id="view-docs"><div class="page-head"><div><div class="crumb">PROYECTO <span>/</span> DOCUMENTOS</div><h1>La carpeta de tu reforma.</h1><p>Planos, fotos, presupuestos y decisiones en un mismo sitio.</p></div><button class="btn btn-dark" id="addDocument">＋ &nbsp; Añadir archivo</button><input type="file" id="documentFile" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" hidden></div><div class="document-summary"><div><b id="docCount">1</b><span>archivo del proyecto</span></div><span>Los documentos se almacenan en este navegador.</span></div><div id="documentGrid" class="document-grid"></div><div class="info-strip"><span>ⓘ</span><p>Los archivos que añadas quedan en este dispositivo. No se sincronizan entre navegadores ni se envían a HomeAI.</p></div></section>
 </main></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div><div class="modal-backdrop" id="modal"><div class="modal" role="dialog" aria-modal="true" aria-label="Opciones del proyecto" tabindex="-1"><button class="modal-close" id="closeModal" aria-label="Cerrar diálogo">×</button><div id="modalContent"></div></div></div>
-</div><script src="app.js" defer></script><script src="catalog-enhancements.js" defer></script><script src="alternatives.js" defer></script><script src="photo-studio.js" defer></script><script src="studio-pro.js" defer></script><script src="catalog-v16.js" defer></script><script src="advisor-v16.js" defer></script><script src="planner-geometry.js" defer></script><script src="room-planner.js" defer></script><script src="material-library.js" defer></script><script src="workspace-v17.js" defer></script><script src="ai-orchestrator.js" defer></script><script src="ai-interior-preview.js" defer></script></body></html>
+</div><script src="app.js" defer></script><script src="catalog-enhancements.js" defer></script><script src="alternatives.js" defer></script><script src="photo-studio.js" defer></script><script src="studio-pro.js" defer></script><script src="catalog-v16.js" defer></script><script src="advisor-v16.js" defer></script><script src="planner-geometry.js" defer></script><script src="room-planner.js" defer></script><script src="material-library.js" defer></script><script src="workspace-v17.js" defer></script><script src="ai-orchestrator.js" defer></script><script src="ai-interior-preview.js" defer></script>
+<script src="ai-renovation.js" defer></script></body></html>
