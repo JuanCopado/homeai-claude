@@ -58,6 +58,26 @@
 
 ## Pendiente de la visualización con IA
 
+- **Validación de la detección de estilo (2026-09-27, rama `claude/estilo-interior`,
+  `server/validation/validate_style.py` → `results_style/`).** CLIP zero-shot,
+  base/32 frente a large/14, 8 estilos. Dos rondas en GitHub Actions:
+  - Muchas "etiquetas" de la búsqueda en Wikimedia eran falsas (la casa Futuro
+    como "escandinavo", el Bohemian Hall checo como "bohemio", exteriores
+    como "rústico"); se descartaron al revisar las fotos a mano.
+  - Con 8 fotos de etiqueta fiable (rústico, industrial, minimalista,
+    moderno): **large/14 acierta 7/8, base/32 3–4/8.** Tiempo en CPU:
+    1,2 s frente a 0,2 s por foto.
+  - Umbral "top-1 ≥ 0,5 y margen ≥ 0,2" con large/14: se sugiere en 7/8 y
+    las 7 aciertan; el fallo (primer plano de una lámpara, 0,45 / +0,05)
+    queda sin sugerencia.
+  - Habitación vacía: sin etiquetas "sumidero" salía "minimalista" (0,97);
+    con "habitación vacía" y "primer plano de objeto" como etiquetas de
+    no-sugerir, 2/2 vacías quedan sin sugerencia. Falta una tercera para
+    exteriores.
+  - **Sin validar por falta de fotos buenas en Wikimedia:** escandinavo,
+    bohemio, clásico y mediterráneo.
+  - Pendiente (en cola tras esto): filtro de calidad con varias variantes.
+
 - **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
   (`server/validation/`, workflow `validate-segmentation.yml`, rama
   `claude/validacion-segmentacion`; el entorno no llega a huggingface.co).
