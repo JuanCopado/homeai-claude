@@ -1,8 +1,5 @@
 # Calibración del puntuador de calidad
 
-(Copiado del log del workflow «Calibrar puntuador», run 36354395337: el push
-del bot fue rechazado porque otra ejecución había subido antes a la rama.)
-
 ## 1. Fallos simulados (nota del fallo < nota del original)
 
 | Foto | Original | borrosa | ruido | jpeg | deformada | quemada |
@@ -26,11 +23,11 @@ Fallos con nota menor que su original: **30/30**; diferencia media 0.366.
 
 Referencia: original contra sí mismo, change = 0.0.
 
-## Umbrales elegidos
+## Umbrales elegidos (server/app.py)
 
-- `QUALITY_MIN_SCORE = 0.5`: descarta 21/30 fallos graves y ninguna variante
-  real (0.71–0.78). Los fallos leves (algo borrosa/quemada) no se descartan pero
+- `QUALITY_MIN_SCORE = 0.5`: en la primera calibración descartó 21/30 fallos graves y ninguna
+  variante real (0.71–0.78). Los fallos leves (algo borrosa/quemada) no se descartan pero
   quedan por debajo en la clasificación.
-- `QUALITY_MIN_CHANGE = 0.11` (entre 0.1015 «sin cambios» y 0.1242 «intermedio»).
-  **Provisional: 1 sola foto.** Recalibrar con la medición completa cuando se
-  renueve el crédito. Con zonas se escala por la fracción de imagen modificada.
+- `QUALITY_MIN_CHANGE = 0.11`: entre «sin cambios» (~0.10) e «intermedio» (~0.12).
+  **Provisional: 1 sola foto real.** Recalibrar con la medición completa cuando haya crédito,
+  también en modo zonas (ahí el cambio se mide en el recorte de la zona).
