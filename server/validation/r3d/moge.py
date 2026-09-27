@@ -22,7 +22,7 @@ def main():
             img = Image.open(p).convert("RGB")
             x = torch.tensor(np.asarray(img) / 255, dtype=torch.float32).permute(2, 0, 1)
             with Timer() as t, torch.no_grad():
-                out = model.infer(x)
+                out = model.infer(x, use_fp16=False)  # en CPU no hay media precisión: la 1.ª ronda falló por eso
             pts = out["points"].cpu().numpy().reshape(-1, 3)
             mask = out["mask"].cpu().numpy().reshape(-1).astype(bool)
             k = out["intrinsics"].cpu().numpy()
