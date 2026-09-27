@@ -1,0 +1,690 @@
+[
+ {
+  "n": 1,
+  "title": "File:Modern rustic interior of a spacious bar featuring wooden accents and stylish seating in a lively social setting.jpg",
+  "expected": "rustico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "industrial",
+      0.464
+     ],
+     [
+      "rustico",
+      0.386
+     ],
+     [
+      "moderno",
+      0.141
+     ]
+    ],
+    "margin": 0.077,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "rustico",
+      0.945
+     ],
+     [
+      "industrial",
+      0.03
+     ],
+     [
+      "moderno",
+      0.017
+     ]
+    ],
+    "margin": 0.915,
+    "seconds": 1.23
+   }
+  }
+ },
+ {
+  "n": 2,
+  "title": "File:Old Serbian traditional shirt hanging on a wooden post in a rustic interior space with woven textiles in Bistrica Serbia.jpg",
+  "expected": "rustico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "rustico",
+      0.832
+     ],
+     [
+      "mediterraneo",
+      0.081
+     ],
+     [
+      "escandinavo",
+      0.045
+     ]
+    ],
+    "margin": 0.751,
+    "seconds": 0.17
+   },
+   "large14": {
+    "top3": [
+     [
+      "rustico",
+      0.652
+     ],
+     [
+      "minimalista",
+      0.26
+     ],
+     [
+      "escandinavo",
+      0.065
+     ]
+    ],
+    "margin": 0.392,
+    "seconds": 1.22
+   }
+  }
+ },
+ {
+  "n": 3,
+  "title": "File:Futuro-talo Sisustus 2.JPG",
+  "expected": "escandinavo",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.906
+     ],
+     [
+      "escandinavo",
+      0.084
+     ],
+     [
+      "clasico",
+      0.005
+     ]
+    ],
+    "margin": 0.822,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.981
+     ],
+     [
+      "minimalista",
+      0.018
+     ],
+     [
+      "escandinavo",
+      0.0
+     ]
+    ],
+    "margin": 0.963,
+    "seconds": 1.22
+   }
+  }
+ },
+ {
+  "n": 4,
+  "title": "File:Futuro-talo Sisustus 1.JPG",
+  "expected": "escandinavo",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.992
+     ],
+     [
+      "mediterraneo",
+      0.003
+     ],
+     [
+      "escandinavo",
+      0.002
+     ]
+    ],
+    "margin": 0.989,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.83
+     ],
+     [
+      "minimalista",
+      0.168
+     ],
+     [
+      "escandinavo",
+      0.001
+     ]
+    ],
+    "margin": 0.662,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 5,
+  "title": "File:Milwaukee August 2024 057 (Square D Company-Industrial Controller Division--Junior House Lofts).jpg",
+  "expected": "industrial",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.867
+     ],
+     [
+      "industrial",
+      0.132
+     ],
+     [
+      "minimalista",
+      0.0
+     ]
+    ],
+    "margin": 0.735,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "industrial",
+      0.934
+     ],
+     [
+      "moderno",
+      0.049
+     ],
+     [
+      "minimalista",
+      0.014
+     ]
+    ],
+    "margin": 0.885,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 6,
+  "title": "File:Kerker Lofts.JPG",
+  "expected": "industrial",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "industrial",
+      0.972
+     ],
+     [
+      "moderno",
+      0.027
+     ],
+     [
+      "clasico",
+      0.0
+     ]
+    ],
+    "margin": 0.945,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "industrial",
+      0.981
+     ],
+     [
+      "moderno",
+      0.017
+     ],
+     [
+      "minimalista",
+      0.001
+     ]
+    ],
+    "margin": 0.964,
+    "seconds": 1.22
+   }
+  }
+ },
+ {
+  "n": 7,
+  "title": "File:Modern pendant lights illuminate minimalist interior design in stylish dining area during evening hours.jpg",
+  "expected": "minimalista",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.499
+     ],
+     [
+      "escandinavo",
+      0.352
+     ],
+     [
+      "minimalista",
+      0.144
+     ]
+    ],
+    "margin": 0.147,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.668
+     ],
+     [
+      "moderno",
+      0.311
+     ],
+     [
+      "escandinavo",
+      0.019
+     ]
+    ],
+    "margin": 0.357,
+    "seconds": 1.22
+   }
+  }
+ },
+ {
+  "n": 8,
+  "title": "File:Minimalist chandelier in the Mița the Cyclist House, Bucharest.jpg",
+  "expected": "minimalista",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.521
+     ],
+     [
+      "moderno",
+      0.293
+     ],
+     [
+      "clasico",
+      0.104
+     ]
+    ],
+    "margin": 0.228,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.494
+     ],
+     [
+      "minimalista",
+      0.445
+     ],
+     [
+      "escandinavo",
+      0.059
+     ]
+    ],
+    "margin": 0.049,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 9,
+  "title": "File:Interior-Auditorium chair, Meadowlands Lodge 361-Western Bohemian Fraternal Union Hall-03.jpg",
+  "expected": "bohemio",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.361
+     ],
+     [
+      "minimalista",
+      0.324
+     ],
+     [
+      "rustico",
+      0.114
+     ]
+    ],
+    "margin": 0.037,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.505
+     ],
+     [
+      "minimalista",
+      0.35
+     ],
+     [
+      "moderno",
+      0.109
+     ]
+    ],
+    "margin": 0.155,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 10,
+  "title": "File:Bohemian Hall Staircase by Kreiss.jpg",
+  "expected": "bohemio",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.968
+     ],
+     [
+      "minimalista",
+      0.024
+     ],
+     [
+      "escandinavo",
+      0.005
+     ]
+    ],
+    "margin": 0.944,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.98
+     ],
+     [
+      "minimalista",
+      0.02
+     ],
+     [
+      "clasico",
+      0.0
+     ]
+    ],
+    "margin": 0.961,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 11,
+  "title": "File:Elegant dining area in a modern apartment with wooden accents and stylish decor.jpg",
+  "expected": "moderno",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "escandinavo",
+      0.83
+     ],
+     [
+      "moderno",
+      0.1
+     ],
+     [
+      "rustico",
+      0.038
+     ]
+    ],
+    "margin": 0.73,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.578
+     ],
+     [
+      "rustico",
+      0.156
+     ],
+     [
+      "minimalista",
+      0.146
+     ]
+    ],
+    "margin": 0.422,
+    "seconds": 1.22
+   }
+  }
+ },
+ {
+  "n": 12,
+  "title": "File:Modern living room with stylish furniture and a view of the outdoors in a cozy apartment setting.jpg",
+  "expected": "moderno",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.625
+     ],
+     [
+      "moderno",
+      0.314
+     ],
+     [
+      "mediterraneo",
+      0.026
+     ]
+    ],
+    "margin": 0.311,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.709
+     ],
+     [
+      "minimalista",
+      0.2
+     ],
+     [
+      "bohemio",
+      0.06
+     ]
+    ],
+    "margin": 0.509,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 13,
+  "title": "File:Empty apartment room with extension cord.jpg",
+  "expected": "?",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.745
+     ],
+     [
+      "escandinavo",
+      0.186
+     ],
+     [
+      "moderno",
+      0.066
+     ]
+    ],
+    "margin": 0.558,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.974
+     ],
+     [
+      "moderno",
+      0.024
+     ],
+     [
+      "escandinavo",
+      0.002
+     ]
+    ],
+    "margin": 0.951,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 14,
+  "title": "File:Empty room in apartment.jpg",
+  "expected": "?",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.521
+     ],
+     [
+      "minimalista",
+      0.468
+     ],
+     [
+      "clasico",
+      0.005
+     ]
+    ],
+    "margin": 0.053,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.618
+     ],
+     [
+      "moderno",
+      0.375
+     ],
+     [
+      "clasico",
+      0.005
+     ]
+    ],
+    "margin": 0.244,
+    "seconds": 1.21
+   }
+  }
+ },
+ {
+  "n": 15,
+  "title": "File:Restaurant room of Amantaka luxury Resort & Hotel in Luang Prabang Laos.jpg",
+  "expected": "?",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "mediterraneo",
+      0.551
+     ],
+     [
+      "moderno",
+      0.209
+     ],
+     [
+      "clasico",
+      0.155
+     ]
+    ],
+    "margin": 0.342,
+    "seconds": 0.16
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.663
+     ],
+     [
+      "minimalista",
+      0.098
+     ],
+     [
+      "mediterraneo",
+      0.086
+     ]
+    ],
+    "margin": 0.565,
+    "seconds": 1.22
+   }
+  }
+ },
+ {
+  "n": 16,
+  "title": "File:Lobby lounge of Amantaka Suite Amantaka luxury Resort & Hotel Luang Prabang Laos.jpg",
+  "expected": "?",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "mediterraneo",
+      0.74
+     ],
+     [
+      "clasico",
+      0.154
+     ],
+     [
+      "moderno",
+      0.058
+     ]
+    ],
+    "margin": 0.586,
+    "seconds": 0.17
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.945
+     ],
+     [
+      "minimalista",
+      0.029
+     ],
+     [
+      "moderno",
+      0.018
+     ]
+    ],
+    "margin": 0.917,
+    "seconds": 1.22
+   }
+  }
+ }
+]
