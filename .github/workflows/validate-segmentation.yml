@@ -26,11 +26,12 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r server/validation/requirements.txt
-      - run: python server/validation/validate_segmentation.py
+      # Ronda 3: compara modelos sobre las fotos de la ronda 2 (results/summary.json).
+      - run: cd server/validation && python compare_models.py
       - name: Guardar resultados en la rama
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add server/validation/results
+          git add server/validation/results server/validation/results_compare
           git commit -m "Resultados de la validación de segmentación" || exit 0
           git push

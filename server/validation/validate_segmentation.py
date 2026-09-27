@@ -144,13 +144,13 @@ def load_local() -> list[dict]:
 
 
 class Segmenter:
-    def __init__(self):
+    def __init__(self, model_id: str = MODEL_ID):
         import torch
         from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
 
         self.torch = torch
-        self.proc = SegformerImageProcessor.from_pretrained(MODEL_ID)
-        self.model = SegformerForSemanticSegmentation.from_pretrained(MODEL_ID).eval()
+        self.proc = SegformerImageProcessor.from_pretrained(model_id)
+        self.model = SegformerForSemanticSegmentation.from_pretrained(model_id).eval()
         self.id2label = self.model.config.id2label
 
     def __call__(self, img: Image.Image) -> tuple[np.ndarray, np.ndarray]:
