@@ -76,6 +76,20 @@
     exteriores.
   - **Sin validar por falta de fotos buenas en Wikimedia:** escandinavo,
     bohemio, clásico y mediterráneo.
+  - **Ronda 3 (Openverse para los estilos sin cubrir) y conclusión global:**
+    Juan pidió buscar en Pinterest; se descartó (derechos de autor de terceros,
+    condiciones de uso, y las fotos se guardan en el repo) y se usó Openverse
+    (licencias libres). Aun así, casi todo lo que devolvió para escandinavo,
+    bohemio y mediterráneo no eran interiores de ese estilo (pabellones que
+    parecen generados por IA, portadas de discos, relieves). Contando solo
+    fotos revisadas a mano con etiqueta fiable, **large/14 acierta 6/7**
+    (rústico 2/2, moderno 2/2, minimalista 1/2, clásico 1/1) y, con el umbral
+    p ≥ 0,5 y margen ≥ 0,2, **sugiere en 6 y acierta las 6**. Las etiquetas de
+    no-sugerir funcionan en **10/10** casos que no son un estilo (6 exteriores,
+    2 habitaciones vacías, portadas de discos, relieve de cerca).
+    **Siguen sin validar con fotos buenas: escandinavo, bohemio y
+    mediterráneo** (industrial solo en ronda 1, cuando las "industriales"
+    resultaron ser fachadas de lofts).
   - Pendiente (en cola tras esto): filtro de calidad con varias variantes.
 
 - **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
