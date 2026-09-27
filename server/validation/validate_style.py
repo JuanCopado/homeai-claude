@@ -56,18 +56,14 @@ class Clip:
         self.torch = torch
         self.model = CLIPModel.from_pretrained(model_id).eval()
         self.proc = CLIPProcessor.from_pretrained(model_id)
-        texts = [TEMPLATE.format(t) for _, t in STYLES.values()]
-        with torch.no_grad():
-            t = self.proc(text=texts, return_tensors="pt", padding=True)
-            self.text = torch.nn.functional.normalize(self.model.get_text_features(**t), dim=-1)
+        self.texts = [TEMPLATE.format(t) for _, t in STYLES.values()]
 
     def __call__(self, img: Image.Image) -> np.ndarray:
-        torch = self.torch
-        with torch.no_grad():
-            i = self.proc(images=img, return_tensors="pt")
-            f = torch.nn.functional.normalize(self.model.get_image_features(**i), dim=-1)
-            logits = self.model.logit_scale.exp() * f @ self.text.T
-            return logits.softmax(dim=-1)[0].numpy()
+        # logits_per_image es la salida estable entre versiones de transformers
+        # (get_text_features cambió de tipo de retorno en versiones recientes).
+        with self.torch.no_grad():
+            inputs = self.proc(text=self.texts, images=img, return_tensors="pt", padding=True)
+            return self.model(**inputs).logits_per_image.softmax(dim=-1)[0].numpy()
 
 
 def main() -> int:
