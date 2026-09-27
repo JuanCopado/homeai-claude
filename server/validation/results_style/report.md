@@ -7,10 +7,10 @@ Celda: top-1 (probabilidad) · margen sobre el 2.º.
 |---|---|---|---|
 | 1 | Rústico | ❌ Industrial (0.46) · +0.08 | ✅ Rústico (0.94) · +0.92 |
 | 2 | Rústico | ✅ Rústico (0.73) · +0.63 | ✅ Rústico (0.60) · +0.36 |
-| 3 | Rústico | ✅ Rústico (0.38) · +0.10 | ❌ (vacía) (0.48) · +0.12 |
-| 4 | Rústico | ❌ Moderno (0.45) · +0.21 | ❌ Clásico (0.79) · +0.69 |
-| 5 | Industrial | ❌ Moderno (0.86) · +0.73 | ✅ Industrial (0.88) · +0.81 |
-| 6 | Industrial | ✅ Industrial (0.97) · +0.94 | ✅ Industrial (0.98) · +0.96 |
+| 3 | Rústico | ❌ (exterior) (0.99) · +0.99 | ❌ (exterior) (0.61) · +0.42 |
+| 4 | Rústico | ❌ (exterior) (1.00) · +0.99 | ❌ (exterior) (0.94) · +0.90 |
+| 5 | Industrial | ❌ (exterior) (0.86) · +0.75 | ❌ (exterior) (0.89) · +0.80 |
+| 6 | Industrial | ❌ (exterior) (0.60) · +0.22 | ❌ (exterior) (0.69) · +0.39 |
 | 7 | Minimalista | ❌ Moderno (0.50) · +0.15 | ✅ Minimalista (0.67) · +0.36 |
 | 8 | Minimalista | ✅ Minimalista (0.48) · +0.21 | ❌ Moderno (0.45) · +0.05 |
 | 9 | Moderno | ❌ Escandinavo (0.83) · +0.73 | ✅ Moderno (0.57) · +0.42 |
@@ -19,34 +19,53 @@ Celda: top-1 (probabilidad) · margen sobre el 2.º.
 | 12 | (vacía) | ✅ (vacía) (1.00) · +0.99 | ✅ (vacía) (1.00) · +0.99 |
 | 13 | ? | · Mediterráneo (0.55) · +0.34 | · Clásico (0.66) · +0.56 |
 | 14 | ? | · Mediterráneo (0.72) · +0.57 | · Clásico (0.94) · +0.92 |
+| 15 | Escandinavo | ❌ Minimalista (0.51) · +0.08 | ❌ Minimalista (0.77) · +0.63 |
+| 16 | Escandinavo | ❌ (vacía) (0.65) · +0.37 | ❌ Minimalista (0.36) · +0.02 |
+| 17 | Bohemio | ❌ (objeto) (0.88) · +0.82 | ❌ (vacía) (0.69) · +0.51 |
+| 18 | Clásico | ✅ Clásico (0.99) · +0.99 | ✅ Clásico (0.99) · +0.98 |
+| 19 | Clásico | ❌ (objeto) (0.74) · +0.49 | ❌ (objeto) (0.99) · +0.98 |
+| 20 | (exterior) | ✅ (exterior) (0.99) · +0.99 | ✅ (exterior) (0.62) · +0.24 |
+| 21 | (exterior) | ✅ (exterior) (0.97) · +0.96 | ✅ (exterior) (0.99) · +0.99 |
 
 ## Resumen
 
 | Modelo | Aciertos (fotos con estilo esperado) | Tiempo medio/foto |
 |---|---|---|
-| base32 | 4/10 (vacías sin sugerencia: 2/2) | 0.19 s |
-| large14 | 7/10 (vacías sin sugerencia: 2/2) | 1.28 s |
+| base32 | 3/15 (vacías/exteriores sin sugerencia: 4/4) | 0.24 s |
+| large14 | 6/15 (vacías/exteriores sin sugerencia: 4/4) | 1.37 s |
+
+## Aciertos por estilo (large14)
+
+| Estilo | Aciertos |
+|---|---|
+| Moderno | 2/2 |
+| Rústico | 2/4 |
+| Minimalista | 1/2 |
+| Industrial | 0/2 |
+| Escandinavo | 0/2 |
+| Clásico | 1/2 |
+| Bohemio | 0/1 |
 
 ## Umbral de confianza (top-1 ≥ p y margen ≥ m)
 
 | Modelo | p | m | Se mostraría en | Aciertos entre las mostradas |
 |---|---|---|---|---|
-| base32 | 0.3 | 0.1 | 9/10 | 4/9 |
-| base32 | 0.3 | 0.2 | 7/10 | 3/7 |
-| base32 | 0.4 | 0.1 | 8/10 | 3/8 |
-| base32 | 0.4 | 0.2 | 7/10 | 3/7 |
-| base32 | 0.5 | 0.1 | 5/10 | 2/5 |
-| base32 | 0.5 | 0.2 | 5/10 | 2/5 |
-| base32 | 0.6 | 0.1 | 4/10 | 2/4 |
-| base32 | 0.6 | 0.2 | 4/10 | 2/4 |
-| large14 | 0.3 | 0.1 | 8/10 | 7/8 |
-| large14 | 0.3 | 0.2 | 8/10 | 7/8 |
-| large14 | 0.4 | 0.1 | 8/10 | 7/8 |
-| large14 | 0.4 | 0.2 | 8/10 | 7/8 |
-| large14 | 0.5 | 0.1 | 8/10 | 7/8 |
-| large14 | 0.5 | 0.2 | 8/10 | 7/8 |
-| large14 | 0.6 | 0.1 | 7/10 | 6/7 |
-| large14 | 0.6 | 0.2 | 7/10 | 6/7 |
+| base32 | 0.3 | 0.1 | 6/15 | 3/6 |
+| base32 | 0.3 | 0.2 | 5/15 | 3/5 |
+| base32 | 0.4 | 0.1 | 6/15 | 3/6 |
+| base32 | 0.4 | 0.2 | 5/15 | 3/5 |
+| base32 | 0.5 | 0.1 | 4/15 | 2/4 |
+| base32 | 0.5 | 0.2 | 4/15 | 2/4 |
+| base32 | 0.6 | 0.1 | 3/15 | 2/3 |
+| base32 | 0.6 | 0.2 | 3/15 | 2/3 |
+| large14 | 0.3 | 0.1 | 7/15 | 6/7 |
+| large14 | 0.3 | 0.2 | 7/15 | 6/7 |
+| large14 | 0.4 | 0.1 | 7/15 | 6/7 |
+| large14 | 0.4 | 0.2 | 7/15 | 6/7 |
+| large14 | 0.5 | 0.1 | 7/15 | 6/7 |
+| large14 | 0.5 | 0.2 | 7/15 | 6/7 |
+| large14 | 0.6 | 0.1 | 6/15 | 5/6 |
+| large14 | 0.6 | 0.2 | 6/15 | 5/6 |
 
 ![01](01.jpg)
 ![02](02.jpg)
@@ -62,6 +81,13 @@ Celda: top-1 (probabilidad) · margen sobre el 2.º.
 ![12](12.jpg)
 ![13](13.jpg)
 ![14](14.jpg)
+![15](15.jpg)
+![16](16.jpg)
+![17](17.jpg)
+![18](18.jpg)
+![19](19.jpg)
+![20](20.jpg)
+![21](21.jpg)
 
 ## Atribución
 
@@ -79,3 +105,10 @@ Celda: top-1 (probabilidad) · margen sobre el 2.º.
 - 12: [File:Empty room in apartment.jpg](https://commons.wikimedia.org/wiki/File:Empty_room_in_apartment.jpg) — aismallard, CC BY-SA 3.0
 - 13: [File:Restaurant room of Amantaka luxury Resort & Hotel in Luang Prabang Laos.jpg](https://commons.wikimedia.org/wiki/File:Restaurant_room_of_Amantaka_luxury_Resort_%26_Hotel_in_Luang_Prabang_Laos.jpg) — Basile Morin, CC BY-SA 4.0
 - 14: [File:Lobby lounge of Amantaka Suite Amantaka luxury Resort & Hotel Luang Prabang Laos.jpg](https://commons.wikimedia.org/wiki/File:Lobby_lounge_of_Amantaka_Suite_Amantaka_luxury_Resort_%26_Hotel_Luang_Prabang_Laos.jpg) — Basile Morin, CC BY-SA 4.0
+- 15: [Box Living - Melancholy and Light on the Jutland Coast - 20](https://www.flickr.com/photos/197722038@N06/55137487478) — ArtisticPonder, CC CC0 1.0
+- 16: [Box Living - Melancholy and Light on the Jutland Coast - 19](https://www.flickr.com/photos/197722038@N06/55137487483) — ArtisticPonder, CC CC0 1.0
+- 17: [London - Wigan - London, 17 & 18-07-21](https://www.flickr.com/photos/55497864@N00/51319456009) — Brett Jordan, CC BY 2.0
+- 18: [Maine-00405 - The Parlor](https://www.flickr.com/photos/22490717@N02/52513891907) — archer10 (Dennis), CC BY-SA 2.0
+- 19: [Maine-00406 - Parlor Fireplace Detail](https://www.flickr.com/photos/22490717@N02/52514357466) — archer10 (Dennis), CC BY-SA 2.0
+- 20: [The Crescent, Buxton](https://www.flickr.com/photos/39415781@N06/15227757879) — ell brown, CC BY-SA 2.0
+- 21: [Marcel Janco - Solly Gold building 1934, Bucharest](https://www.flickr.com/photos/9019841@N08/51848085965) — fusion-of-horizons, CC BY 2.0

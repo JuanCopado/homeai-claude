@@ -20,7 +20,7 @@
      ]
     ],
     "margin": 0.077,
-    "seconds": 0.2
+    "seconds": 0.27
    },
    "large14": {
     "top3": [
@@ -38,7 +38,7 @@
      ]
     ],
     "margin": 0.915,
-    "seconds": 1.29
+    "seconds": 1.31
    }
   }
  },
@@ -62,8 +62,8 @@
       0.071
      ]
     ],
-    "margin": 0.626,
-    "seconds": 0.19
+    "margin": 0.625,
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -81,7 +81,7 @@
      ]
     ],
     "margin": 0.361,
-    "seconds": 1.27
+    "seconds": 1.3
    }
   }
  },
@@ -93,38 +93,38 @@
    "base32": {
     "top3": [
      [
+      "_exterior",
+      0.993
+     ],
+     [
       "rustico",
-      0.381
+      0.003
      ],
      [
       "moderno",
-      0.279
-     ],
-     [
-      "_vacia",
-      0.268
+      0.002
      ]
     ],
-    "margin": 0.102,
-    "seconds": 0.19
+    "margin": 0.991,
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
      [
+      "_exterior",
+      0.606
+     ],
+     [
       "_vacia",
-      0.482
+      0.19
      ],
      [
       "rustico",
-      0.367
-     ],
-     [
-      "minimalista",
-      0.05
+      0.145
      ]
     ],
-    "margin": 0.115,
-    "seconds": 1.27
+    "margin": 0.415,
+    "seconds": 1.3
    }
   }
  },
@@ -136,38 +136,38 @@
    "base32": {
     "top3": [
      [
+      "_exterior",
+      0.995
+     ],
+     [
       "moderno",
-      0.455
+      0.002
      ],
      [
       "_vacia",
-      0.243
-     ],
-     [
-      "clasico",
-      0.183
+      0.001
      ]
     ],
-    "margin": 0.212,
-    "seconds": 0.19
+    "margin": 0.993,
+    "seconds": 0.21
    },
    "large14": {
     "top3": [
      [
+      "_exterior",
+      0.944
+     ],
+     [
       "clasico",
-      0.787
+      0.044
      ],
      [
       "_vacia",
-      0.095
-     ],
-     [
-      "moderno",
-      0.043
+      0.005
      ]
     ],
-    "margin": 0.692,
-    "seconds": 1.27
+    "margin": 0.899,
+    "seconds": 1.33
    }
   }
  },
@@ -179,38 +179,38 @@
    "base32": {
     "top3": [
      [
+      "_exterior",
+      0.865
+     ],
+     [
       "moderno",
-      0.86
+      0.116
      ],
      [
       "industrial",
-      0.131
+      0.018
+     ]
+    ],
+    "margin": 0.748,
+    "seconds": 0.29
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.893
+     ],
+     [
+      "industrial",
+      0.093
      ],
      [
       "_vacia",
       0.006
      ]
     ],
-    "margin": 0.729,
-    "seconds": 0.19
-   },
-   "large14": {
-    "top3": [
-     [
-      "industrial",
-      0.875
-     ],
-     [
-      "_vacia",
-      0.06
-     ],
-     [
-      "moderno",
-      0.046
-     ]
-    ],
-    "margin": 0.815,
-    "seconds": 1.27
+    "margin": 0.8,
+    "seconds": 1.29
    }
   }
  },
@@ -222,38 +222,38 @@
    "base32": {
     "top3": [
      [
+      "_exterior",
+      0.604
+     ],
+     [
       "industrial",
-      0.972
+      0.385
      ],
      [
       "moderno",
-      0.027
-     ],
-     [
-      "_vacia",
-      0.001
+      0.011
      ]
     ],
-    "margin": 0.944,
-    "seconds": 0.19
+    "margin": 0.218,
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
      [
+      "_exterior",
+      0.692
+     ],
+     [
       "industrial",
-      0.976
+      0.301
      ],
      [
       "moderno",
-      0.016
-     ],
-     [
-      "_vacia",
-      0.003
+      0.005
      ]
     ],
-    "margin": 0.96,
-    "seconds": 1.27
+    "margin": 0.391,
+    "seconds": 1.32
    }
   }
  },
@@ -278,7 +278,7 @@
      ]
     ],
     "margin": 0.146,
-    "seconds": 0.19
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -296,7 +296,7 @@
      ]
     ],
     "margin": 0.356,
-    "seconds": 1.28
+    "seconds": 1.3
    }
   }
  },
@@ -321,7 +321,7 @@
      ]
     ],
     "margin": 0.211,
-    "seconds": 0.19
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -339,7 +339,7 @@
      ]
     ],
     "margin": 0.045,
-    "seconds": 1.27
+    "seconds": 1.34
    }
   }
  },
@@ -364,7 +364,7 @@
      ]
     ],
     "margin": 0.727,
-    "seconds": 0.19
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -382,7 +382,7 @@
      ]
     ],
     "margin": 0.419,
-    "seconds": 1.27
+    "seconds": 1.51
    }
   }
  },
@@ -407,7 +407,7 @@
      ]
     ],
     "margin": 0.287,
-    "seconds": 0.19
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -425,7 +425,7 @@
      ]
     ],
     "margin": 0.489,
-    "seconds": 1.27
+    "seconds": 1.33
    }
   }
  },
@@ -450,7 +450,7 @@
      ]
     ],
     "margin": 0.814,
-    "seconds": 0.19
+    "seconds": 0.21
    },
    "large14": {
     "top3": [
@@ -468,7 +468,7 @@
      ]
     ],
     "margin": 0.888,
-    "seconds": 1.27
+    "seconds": 1.8
    }
   }
  },
@@ -493,7 +493,7 @@
      ]
     ],
     "margin": 0.993,
-    "seconds": 0.19
+    "seconds": 0.31
    },
    "large14": {
     "top3": [
@@ -511,7 +511,7 @@
      ]
     ],
     "margin": 0.994,
-    "seconds": 1.28
+    "seconds": 1.37
    }
   }
  },
@@ -536,7 +536,7 @@
      ]
     ],
     "margin": 0.342,
-    "seconds": 0.19
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -554,7 +554,7 @@
      ]
     ],
     "margin": 0.562,
-    "seconds": 1.29
+    "seconds": 1.46
    }
   }
  },
@@ -579,7 +579,7 @@
      ]
     ],
     "margin": 0.572,
-    "seconds": 0.19
+    "seconds": 0.2
    },
    "large14": {
     "top3": [
@@ -597,7 +597,308 @@
      ]
     ],
     "margin": 0.916,
-    "seconds": 1.27
+    "seconds": 1.37
+   }
+  }
+ },
+ {
+  "n": 15,
+  "title": "Box Living - Melancholy and Light on the Jutland Coast - 20",
+  "expected": "escandinavo",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.506
+     ],
+     [
+      "_vacia",
+      0.424
+     ],
+     [
+      "moderno",
+      0.034
+     ]
+    ],
+    "margin": 0.082,
+    "seconds": 0.21
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.771
+     ],
+     [
+      "moderno",
+      0.138
+     ],
+     [
+      "_vacia",
+      0.09
+     ]
+    ],
+    "margin": 0.634,
+    "seconds": 1.33
+   }
+  }
+ },
+ {
+  "n": 16,
+  "title": "Box Living - Melancholy and Light on the Jutland Coast - 19",
+  "expected": "escandinavo",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_vacia",
+      0.651
+     ],
+     [
+      "minimalista",
+      0.283
+     ],
+     [
+      "moderno",
+      0.052
+     ]
+    ],
+    "margin": 0.368,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.361
+     ],
+     [
+      "_vacia",
+      0.337
+     ],
+     [
+      "moderno",
+      0.301
+     ]
+    ],
+    "margin": 0.024,
+    "seconds": 1.33
+   }
+  }
+ },
+ {
+  "n": 17,
+  "title": "London - Wigan - London, 17 & 18-07-21",
+  "expected": "bohemio",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_objeto",
+      0.885
+     ],
+     [
+      "_vacia",
+      0.064
+     ],
+     [
+      "moderno",
+      0.025
+     ]
+    ],
+    "margin": 0.821,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "_vacia",
+      0.685
+     ],
+     [
+      "_objeto",
+      0.174
+     ],
+     [
+      "moderno",
+      0.112
+     ]
+    ],
+    "margin": 0.512,
+    "seconds": 1.34
+   }
+  }
+ },
+ {
+  "n": 18,
+  "title": "Maine-00405 - The Parlor",
+  "expected": "clasico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "clasico",
+      0.993
+     ],
+     [
+      "mediterraneo",
+      0.003
+     ],
+     [
+      "moderno",
+      0.001
+     ]
+    ],
+    "margin": 0.99,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.988
+     ],
+     [
+      "_objeto",
+      0.009
+     ],
+     [
+      "moderno",
+      0.002
+     ]
+    ],
+    "margin": 0.98,
+    "seconds": 1.34
+   }
+  }
+ },
+ {
+  "n": 19,
+  "title": "Maine-00406 - Parlor Fireplace Detail",
+  "expected": "clasico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_objeto",
+      0.737
+     ],
+     [
+      "clasico",
+      0.251
+     ],
+     [
+      "mediterraneo",
+      0.007
+     ]
+    ],
+    "margin": 0.486,
+    "seconds": 0.31
+   },
+   "large14": {
+    "top3": [
+     [
+      "_objeto",
+      0.99
+     ],
+     [
+      "clasico",
+      0.009
+     ],
+     [
+      "minimalista",
+      0.0
+     ]
+    ],
+    "margin": 0.981,
+    "seconds": 1.36
+   }
+  }
+ },
+ {
+  "n": 20,
+  "title": "The Crescent, Buxton",
+  "expected": "_exterior",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.994
+     ],
+     [
+      "_vacia",
+      0.005
+     ],
+     [
+      "_objeto",
+      0.001
+     ]
+    ],
+    "margin": 0.989,
+    "seconds": 0.37
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.62
+     ],
+     [
+      "_vacia",
+      0.377
+     ],
+     [
+      "moderno",
+      0.002
+     ]
+    ],
+    "margin": 0.243,
+    "seconds": 1.36
+   }
+  }
+ },
+ {
+  "n": 21,
+  "title": "Marcel Janco - Solly Gold building 1934, Bucharest",
+  "expected": "_exterior",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.973
+     ],
+     [
+      "moderno",
+      0.011
+     ],
+     [
+      "_vacia",
+      0.009
+     ]
+    ],
+    "margin": 0.962,
+    "seconds": 0.4
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.995
+     ],
+     [
+      "_vacia",
+      0.003
+     ],
+     [
+      "moderno",
+      0.001
+     ]
+    ],
+    "margin": 0.992,
+    "seconds": 1.4
    }
   }
  }
