@@ -76,6 +76,16 @@
   - Sin probar aún: buhardillas/techos inclinados.
   - Conclusión: sirve como punto de partida si el usuario **ve y puede
     corregir** la zona antes de generar; no como verdad absoluta.
+  - **Ronda 3 (b0 vs b2 vs b4, mismas 10 fotos,
+    `server/validation/results_compare/`):** confianza media en mobiliario
+    0,69 → 0,83 → 0,86; ventana/puerta 0,78 → 0,87 → 0,89; pared/suelo/techo
+    ya altas y suben algo. Tiempo en CPU de 2 núcleos: 0,9 s → 2,7 s → 3,2 s
+    por foto. b2/b4 arreglan los armarios blancos sobre pared blanca y las
+    puertas; la base blanca de la isla de cocina sigue saliendo como pared en
+    los tres. **Recomendación: b4** (mejor en todo por +0,5 s respecto a b2;
+    la segmentación se hace una vez por foto), ejecutado dentro del propio
+    servicio (sin depender de que un proveedor de HF sirva el modelo y sin
+    enviar la foto a otro tercero para segmentar).
 - **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
   validar con fotos reales (decisión de Juan, 2026-09-27).** Orden acordado:
   1) validar la segmentación con 5–10 fotos reales, 2) solo entonces servidor
