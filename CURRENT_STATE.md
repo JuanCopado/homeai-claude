@@ -86,7 +86,26 @@
     la segmentación se hace una vez por foto), ejecutado dentro del propio
     servicio (sin depender de que un proveedor de HF sirva el modelo y sin
     enviar la foto a otro tercero para segmentar).
-- **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
+- **Segmentación por zonas — IMPLEMENTADA (2026-09-27)** tras la validación.
+  Servidor: `server/segmentation.py` (SegFormer-b4 en CPU, zonas, composición
+  con máscara), `POST /api/segment` y `mask`/`zones` en `/api/renovate`.
+  Interfaz (`ai-renovation.js`): consentimiento antes de detectar, "Solo
+  algunas zonas" / "Toda la foto", foto con la selección en verde, tocar zona
+  o botones por zona (con %), pincel ＋/－, "Quitar ajustes", resumen de lo que
+  se modificará, y si la detección falla se pasa a "Toda la foto" con el
+  motivo visible. Verificado: 57 tests `pytest` (composición exacta fuera de
+  la máscara, varias zonas, máscaras inválidas/vacías/de otro tamaño, límites
+  y fallos del modelo); código de producción con SegFormer-b4 real en
+  GitHub Actions sobre 6 fotos (`validation/results_server/`); navegador real
+  → servidor real (segmentación simulada con zonas conocidas, generación con
+  endpoint local): lo no seleccionado queda intacto (diferencia 0), lo borrado
+  con pincel también, varias zonas, foto nueva reinicia, fallo → toda la foto,
+  sin errores de consola ni scroll horizontal a 390 y 1440 px; regresión de
+  las 7 vistas y del flujo de foto entera.
+  Pendiente: probar en un despliegue real (Space) y con buhardillas; el
+  endpoint de segmentación no tiene autenticación (límite por IP y
+  concurrencia), como el resto del servicio.
+- (Histórico) **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
   validar con fotos reales (decisión de Juan, 2026-09-27).** Orden acordado:
   1) validar la segmentación con 5–10 fotos reales, 2) solo entonces servidor
   + interfaz. Bloqueos en la sesión en que se pidió: huggingface.co bloqueado

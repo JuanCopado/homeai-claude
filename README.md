@@ -26,6 +26,8 @@ La lectura de etiquetas usa un modelo de OCR. La reconstrucción 3D extruye lín
 
 En la vista Diseño: sube una foto de la estancia, elige un estilo (o descríbelo) y compara el antes y el después con un deslizador. Puedes guardar el resultado en Archivos o descartarlo.
 
+Puedes cambiar **solo algunas zonas**: HomeAI detecta pared, suelo, techo y mobiliario; tócalas en la foto (una o varias), corrige con el pincel si hace falta y verás en verde exactamente qué se va a modificar. El resto de la foto se queda como está. O elige «Toda la foto».
+
 - **Sale del dispositivo**, a diferencia del resto de HomeAI: la foto se reduce a 1024 px y se re-codifica sin EXIF/GPS en el navegador, y se envía, con tu consentimiento explícito, al servicio de HomeAI (`server/`) y de ahí a Hugging Face. No se guarda en ningún servidor; el resultado solo se guarda en este navegador si pulsas «Guardar».
 - Es una orientación visual: el modelo intenta conservar paredes, ventanas y distribución, pero puede cambiar detalles o inventar objetos.
 - Está desactivada hasta que se configura la URL del servicio en `index.html`. Despliegue, límites y privacidad: `server/README.md`.

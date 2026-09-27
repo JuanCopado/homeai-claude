@@ -51,8 +51,8 @@ def main() -> int:
     summary = json.loads((HERE / "results" / "summary.json").read_text(encoding="utf-8"))
     palette = np.array([(231, 111, 81), (42, 157, 143), (233, 196, 106), (69, 123, 157), (155, 93, 229), (120, 120, 120)], np.uint8)
     report = ["# Comprobación del servidor con SegFormer-b4 real", "",
-              "| Foto | Zonas (%) | Selección | Píxeles cambiados fuera de la máscara (>16 px del borde) | Dentro cambiados |",
-              "|---|---|---|---|---|"]
+              "| Foto | Zonas (%) | Selección | Fuga fuera de la máscara (>16 px del borde) | Ruido JPEG fuera (>12 niveles) | Dentro sustituido |",
+              "|---|---|---|---|---|---|"]
     failures = 0
     for s in summary[:6]:
         src = fetch_by_title(s["title"]).convert("RGB")
@@ -79,12 +79,18 @@ def main() -> int:
             out = np.asarray(Image.open(io.BytesIO(r.content)).convert("RGB"), dtype=int)
             orig = np.asarray(service.preprocess(buf.getvalue(), 1024), dtype=int)
             far = ~(np.asarray(Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(33))) > 127)
-            changed_out = float((np.abs(out - orig).max(axis=2)[far] > 12).mean())
+            # Fuga = píxel lejos de la máscara que se ha vuelto verde (el color del
+            # generador de prueba) sin serlo en la foto original. El ruido de la
+            # compresión JPEG se mide aparte y es solo informativo.
+            def greenish(a):
+                return (a[..., 1] - np.maximum(a[..., 0], a[..., 2])) > 80
+            leaked = float((greenish(out) & ~greenish(orig))[far].mean())
+            jpeg_noise = float((np.abs(out - orig).max(axis=2)[far] > 12).mean())
             changed_in = float((np.abs(out - [0, 255, 0]).max(axis=2)[mask] <= 12).mean())
-            ok = changed_out < 0.001
+            ok = leaked == 0
             failures += not ok
             report.append(f"| {s['n']:02d} {s['query']} | " + ", ".join(f"{k} {v}" for k, v in pct.items() if v >= 1)
-                          + f" | {'+'.join(zones)} | {100 * changed_out:.3f}% {'✅' if ok else '❌'} | {100 * changed_in:.0f}% |")
+                          + f" | {'+'.join(zones)} | {100 * leaked:.3f}% {'✅' if ok else '❌'} | {100 * jpeg_noise:.3f}% | {100 * changed_in:.0f}% |")
             overlay = Image.blend(Image.fromarray(orig.astype(np.uint8)), Image.fromarray(palette[zmap]), 0.5)
             panels = [Image.fromarray(orig.astype(np.uint8)), overlay, Image.fromarray(out.astype(np.uint8))]
             for p in panels:
