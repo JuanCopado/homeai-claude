@@ -58,6 +58,28 @@
 
 ## Pendiente de la visualización con IA
 
+- **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
+  validar con fotos reales (decisión de Juan, 2026-09-27).** Orden acordado:
+  1) validar la segmentación con 5–10 fotos reales, 2) solo entonces servidor
+  + interfaz. Bloqueos en la sesión en que se pidió: huggingface.co bloqueado
+  por la política de red del entorno, sin `HF_TOKEN`, sin fotos reales.
+  Para retomarlo: permitir `huggingface.co` y `router.huggingface.co` en el
+  entorno, `HF_TOKEN` como variable de entorno, y fotos en
+  `server/validation/fotos/` (mejor fotos con licencia libre: lo que entra en
+  git queda en el historial).
+  Correcciones al encargo: la fase 1 es img2img (ControlNet no está
+  implementado); `runwayml/stable-diffusion-inpainting` ya no existe (espejo:
+  `stable-diffusion-v1-5/stable-diffusion-inpainting`); `InferenceClient` no
+  tiene tarea de inpainting con máscara.
+  Diseño propuesto: segmentación con `nvidia/segformer-b0-finetuned-ade-512-512`
+  (`InferenceClient.image_segmentation`), clases ADE20K agrupadas en zonas
+  (pared; suelo; techo; ventana/puerta; mobiliario = cama, sofá, mesa, silla,
+  armario…), calculada **una vez al subir la foto** y devuelta al navegador
+  (el servidor no la guarda); el navegador envía las zonas elegidas con la
+  petición de generación; el servidor genera y **compone el resultado solo
+  dentro de la máscara** (borde suavizado), de modo que fuera de ella la foto
+  queda idéntica píxel a píxel aunque el proveedor no sepa hacer inpainting.
+
 - Desplegar `server/` como Space, poner `HF_TOKEN` como secreto, elegir un
   `HF_MODEL` que `check_model.py` confirme, y poner la URL en `index.html`.
 - Revisar la política de retención del proveedor que sirva el modelo
