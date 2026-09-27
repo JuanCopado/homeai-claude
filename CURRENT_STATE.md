@@ -2,13 +2,25 @@
 
 > El coordinador actualiza este archivo al terminar cada tarea (qué se hizo, qué
 > queda pendiente, qué deuda nueva se detectó). Es lo primero que debe leer
-> cualquier agente antes de tocar nada. Última actualización: **2026-09-26**
+> cualquier agente antes de tocar nada. Última actualización: **2026-09-27**
 > (auditoría técnica y funcional completa + Digital Home Twin fases 1-3 +
 > investigación de proveedores de IA + implementación de dos opciones
 > gratuitas/locales — orquestador WebLLM y generación de interiores con
 > Stable Diffusion en navegador — ver secciones dedicadas abajo).
 
 ## Hecho
+
+- **Investigación: reconstrucción 3D de habitaciones desde fotos (2026-09-27).**
+  Solo investigación, sin cambios en la app. Detalle en `INVESTIGACION_3D.md`.
+  - Se revisaron 11 herramientas y se probaron 4 con fotos reales en CPU
+    (GitHub Actions, `research-3d.yml`, código en `server/validation/r3d/`).
+  - Recomendación Fase 0: **MoGe-2** (MIT, 1 foto, 28 s en CPU, geometría métrica
+    coherente). Fase 1: **MapAnything-Apache** (varias fotos, 75 s con 4).
+    Visor: three.js. Descartadas por licencia no comercial: MASt3R, SpatialLM
+    y Depth Pro; OpenSplat por la AGPL.
+  - Pendiente: solicitar acceso a VGGT-1B-Commercial (repo restringido, 403) y
+    relanzar la comparación. Integrar supone un endpoint `/api/reconstruct` y
+    añadir three.js al frontend (revisión de Architect + Security).
 
 - **Visualización de reforma con IA, fase 1 (MVP) (2026-09-27).** Foto real de
   la estancia + estilo → la misma estancia redecorada, vía Hugging Face
