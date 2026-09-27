@@ -3,7 +3,7 @@ name: Calibrar puntuador
 # con las variantes reales ya generadas. No usa secretos ni gasta crédito.
 on:
   push:
-    branches: [claude/variantes-calidad]
+    branches: [claude/variantes-calidad, claude/pipeline-qwen]
     paths:
       - server/quality.py
       - server/validation/check_quality.py

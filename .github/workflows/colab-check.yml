@@ -1,0 +1,49 @@
+name: Comprobar notebook de Colab
+# Sin GPU ni crédito: (1) el notebook está sincronizado con el código del
+# servidor, (2) su pipeline funciona de punta a punta con la API real de
+# diffusers y un Qwen-Image-Edit diminuto en CPU, (3) metadatos del Hub
+# (tamaños reales de los pesos, LoRA Lightning, proveedores).
+on:
+  push:
+    branches: [claude/pipeline-qwen]
+    paths:
+      - server/pipeline.py
+      - server/local_qwen.py
+      - server/quality.py
+      - server/style.py
+      - server/segmentation.py
+      - server/validation/colab/**
+      - .github/workflows/colab-check.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: colab-check
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r server/requirements.txt "diffusers>=0.35" "accelerate>=1.0" requests
+      - name: Notebook sincronizado
+        run: cd server && python validation/colab/build_notebook.py --check
+      - name: Pipeline del notebook con un modelo diminuto
+        run: cd server && python validation/colab/smoke_test.py
+      - name: Metadatos del Hub
+        if: always()
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: cd server && python validation/colab/check_hub.py
+      - name: Guardar resultados en la rama
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/validation/results_colab_check
+          git commit -m "Comprobación del notebook de Colab en el Hub" || exit 0
+          git pull --rebase origin "${GITHUB_REF_NAME}" && git push

@@ -73,16 +73,44 @@ def test_missing_token_is_reported(api, monkeypatch):
     assert r.status_code == 503 and r.json()["error"] == "not_configured"
 
 
-def test_success_returns_jpeg_and_sends_structure_prompt(api, fake):
+def test_success_returns_jpeg_and_sends_edit_instruction(api, fake):
     r = post(api, jpeg(), strength=0.9)
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/jpeg"
     assert r.headers["cache-control"] == "no-store"
     assert Image.open(io.BytesIO(r.content)).format == "JPEG"
     _, kwargs = fake.calls[0]
+    # Qwen-Image-Edit (por defecto): instrucción, intensidad en el texto, sin strength.
+    assert kwargs["model"] == "Qwen/Qwen-Image-Edit"
+    assert kwargs["prompt"].startswith("Redecorate this room in this style: nórdico, madera clara.")
+    assert "complete redesign" in kwargs["prompt"] and "same camera angle" in kwargs["prompt"]
+    assert "strength" not in kwargs
+    assert kwargs["negative_prompt"] and kwargs["guidance_scale"] == 4.0
+
+
+def test_intensity_goes_into_the_instruction(api, fake):
+    post(api, jpeg(), strength=0.3)
+    assert "subtle update" in fake.calls[0][1]["prompt"]
+
+
+def test_classic_img2img_model_keeps_strength(api, fake, monkeypatch):
+    monkeypatch.setenv("HF_MODEL", "stabilityai/stable-diffusion-xl-base-1.0")
+    post(api, jpeg(), strength=0.9)
+    _, kwargs = fake.calls[0]
     assert kwargs["prompt"].startswith("nórdico, madera clara, same room")
     assert kwargs["strength"] == 0.8  # se limita al máximo permitido
-    assert kwargs["negative_prompt"]
+
+
+def test_result_is_returned_at_the_photo_size(api, monkeypatch):
+    class OneMegapixel(FakeClient):
+        def image_to_image(self, image, **kwargs):
+            return Image.new("RGB", (1184, 896), (40, 90, 60))  # como Qwen: ~1 MP, múltiplos de 32
+
+    monkeypatch.setenv("HF_TOKEN", "hf_test")
+    monkeypatch.setattr(service, "make_client", lambda cfg: OneMegapixel())
+    service._hits.clear()
+    r = post(api, jpeg(size=(800, 600)))
+    assert Image.open(io.BytesIO(r.content)).size == (800, 600)
 
 
 def test_exif_and_gps_are_stripped_before_sending(api, fake):

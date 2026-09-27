@@ -23,7 +23,6 @@ import threading
 import time
 from collections import defaultdict, deque
 
-import numpy as np
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -32,6 +31,9 @@ from starlette.formparsers import MultiPartParser
 
 import segmentation as seg
 import style as style_mod
+# pick_best y build_prompt se re-exportan: los usan los tests y validation/.
+from pipeline import (DEFAULT_NEGATIVE, build_prompt, check_similarity, is_edit_model,  # noqa: F401
+                      pick_best, score_variants, zone_box)
 
 log = logging.getLogger("homeai.renovation")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -49,15 +51,6 @@ ACCEPTED_FORMATS = {"JPEG", "PNG", "WEBP"}
 MIN_SIDE = 256
 MAX_ASPECT = 3.0
 MAX_STYLE_CHARS = 300
-
-STRUCTURE_SUFFIX = (
-    "same room, same camera angle, keep walls, windows, doors, ceiling and floor layout "
-    "exactly in place, realistic interior design photograph, natural light, high detail"
-)
-DEFAULT_NEGATIVE = (
-    "different room, changed layout, moved windows, extra doors, distorted walls, "
-    "warped perspective, people, text, watermark, blurry, low quality, cartoon"
-)
 
 
 def env_float(name: str, default: float) -> float:
@@ -88,19 +81,24 @@ def settings() -> dict:
         "timeout": env_float("HF_TIMEOUT_SECONDS", 120),
         "max_upload": env_int("MAX_UPLOAD_MB", 10) * 1024 * 1024,
         "max_side": env_int("MAX_IMAGE_SIDE", 1024),
+        # api: Inference Providers de HF (de pago por imagen). diffusers: el
+        # modelo en una GPU propia (local_qwen.py, 24 GB+ de VRAM o nf4).
+        "backend": os.environ.get("GEN_BACKEND", "api"),
+        # Valores por defecto de Qwen-Image-Edit en fal-ai (30 pasos, guía 4).
         "steps": env_int("HF_STEPS", 30),
-        "guidance": env_float("HF_GUIDANCE_SCALE", 7.0),
+        "guidance": env_float("HF_GUIDANCE_SCALE", 4.0),
         "rate_per_hour": env_int("RATE_LIMIT_PER_HOUR", 10),
         "max_concurrent": env_int("MAX_CONCURRENT_GENERATIONS", 2),
         "seg_rate_per_hour": env_int("SEG_RATE_LIMIT_PER_HOUR", 30),
         "seg_concurrent": env_int("MAX_CONCURRENT_SEGMENTATIONS", 2),
         "style_rate_per_hour": env_int("STYLE_RATE_LIMIT_PER_HOUR", 30),
-        # Variantes por petición y filtro de calidad (server/quality.py).
-        # Umbrales calibrados en validation/results_quality/report.md
-        # (min_change es provisional: sale de una sola foto real).
-        "variants_max": env_int("VARIANTS_MAX", 3),
+        # Variantes por petición (máximo 2: el coste es por imagen) y filtros
+        # (pipeline.py). max_similarity: por encima, la variante es «casi
+        # idéntica» al original y se regenera. 0,89 = el antiguo
+        # QUALITY_MIN_CHANGE 0,11; provisional hasta la medición en Colab.
+        "variants_max": min(2, env_int("VARIANTS_MAX", 2)),
         "min_score": env_float("QUALITY_MIN_SCORE", 0.5),
-        "min_change": env_float("QUALITY_MIN_CHANGE", 0.11),
+        "max_similarity": env_float("SIMILARITY_MAX", 0.89),
     }
 
 
@@ -224,6 +222,10 @@ def clean_style(style: str) -> str:
 # --- Llamada al modelo ---------------------------------------------------------
 
 def make_client(cfg: dict):
+    if cfg["backend"] == "diffusers":
+        import local_qwen
+
+        return local_qwen.get_client(cfg["model"])
     from huggingface_hub import InferenceClient
 
     return InferenceClient(provider=cfg["provider"], token=cfg["token"], timeout=cfg["timeout"])
@@ -258,13 +260,6 @@ def map_hf_error(exc: Exception) -> ApiError:
     return ApiError(502, "upstream_error", "El servicio de IA ha fallado. Inténtalo de nuevo.")
 
 
-def build_prompt(style: str, zones: list[str]) -> str:
-    if not zones:
-        return f"{style}, {STRUCTURE_SUFFIX}"
-    target = " and ".join(seg.ZONE_PROMPT[z] for z in zones)
-    return f"{target} redesigned: {style}, {STRUCTURE_SUFFIX}"
-
-
 def parse_zones(raw: str) -> list[str]:
     zones = [z.strip() for z in (raw or "").split(",") if z.strip()]
     if any(z not in seg.ZONE_PROMPT for z in zones):
@@ -293,6 +288,12 @@ def generate(img: Image.Image, prompt: str, strength: float, cfg: dict) -> Image
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=92)
     client = make_client(cfg)
+    extra = {}
+    if not is_edit_model(cfg["model"]):
+        # Cuánto se aleja de la foto (0 = igual, 1 = imagen nueva). Solo en
+        # modelos img2img clásicos; en los de edición (Qwen-Image-Edit) no
+        # existe y la intensidad va en la instrucción (pipeline.build_prompt).
+        extra["strength"] = strength
     try:
         result = client.image_to_image(
             buf.getvalue(),
@@ -301,24 +302,20 @@ def generate(img: Image.Image, prompt: str, strength: float, cfg: dict) -> Image
             num_inference_steps=cfg["steps"],
             guidance_scale=cfg["guidance"],
             model=cfg["model"],
-            # Cuánto se aleja de la foto original (0 = igual, 1 = imagen nueva).
-            # No es un argumento con nombre de image_to_image: se envía como
-            # parámetro extra y lo usan los modelos img2img que lo admiten.
-            strength=strength,
+            **extra,
         )
     except Exception as exc:  # noqa: BLE001 - se traduce a un error de API claro
         raise map_hf_error(exc) from exc
-    return result.convert("RGB")
+    result = result.convert("RGB")
+    # Qwen-Image-Edit trabaja a ~1 MP (múltiplos de 32): se vuelve al tamaño
+    # de la foto para que la comparación antes/después y las zonas encajen.
+    return result if result.size == img.size else result.resize(img.size, Image.LANCZOS)
 
 
-def generate_variants(img, prompt, strength, cfg, n, mask_arr):
+def generate_batch(img, prompt, strength, cfg, n, mask_arr):
     """Genera n variantes EN PARALELO (la latencia es la de la más lenta, no la
-    suma: 1 variante 45 s frente a 2 en paralelo 28 s en la medición real),
-    aplica la máscara a cada una y las puntúa frente al original.
-
-    Devuelve (variantes, primer_error). Una variante que falla no tumba a las
-    demás; si fallan todas, el llamante lanza el primer error.
-    """
+    suma) y aplica la máscara a cada una. Devuelve (variantes, primer_error):
+    una variante que falla no tumba a las demás."""
     from concurrent.futures import ThreadPoolExecutor
 
     def one(_):
@@ -333,51 +330,7 @@ def generate_variants(img, prompt, strength, cfg, n, mask_arr):
     with ThreadPoolExecutor(n) as ex:
         results = list(ex.map(one, range(n)))
     variants = [{"image": r} for r in results if not isinstance(r, ApiError)]
-    first_error = next((r for r in results if isinstance(r, ApiError)), None)
-    box = None
-    if mask_arr is not None:
-        ys, xs = np.nonzero(mask_arr)
-        pad = 8
-        box = (max(0, xs.min() - pad), max(0, ys.min() - pad), min(img.width, xs.max() + pad + 1), min(img.height, ys.max() + pad + 1))
-    try:
-        import quality
-
-        for v in variants:
-            v.update(quality.score(v["image"], img, box))
-    except Exception:  # noqa: BLE001 - sin puntuador se devuelven sin filtrar
-        log.exception("Fallo del puntuador de calidad; se devuelven las variantes sin filtrar")
-    return variants, first_error
-
-
-def judge(variants: list[dict], cfg: dict) -> None:
-    """Marca descartes: sin cambios respecto al original (el modelo "no hizo
-    nada") o calidad por debajo del umbral. Con zonas, "change" ya viene
-    medido sobre el recorte de la zona (generate_variants), así que el mismo
-    umbral vale en los dos modos."""
-    min_change = cfg["min_change"]
-    for v in variants:
-        if "score" not in v:
-            v["discarded"], v["reason"] = False, None
-        elif v.get("change") is not None and v["change"] < min_change:
-            v["discarded"], v["reason"] = True, "sin_cambios"
-        elif v["score"] < cfg["min_score"]:
-            v["discarded"], v["reason"] = True, "calidad_baja"
-        else:
-            v["discarded"], v["reason"] = False, None
-
-
-def pick_best(variants: list[dict]) -> int:
-    """La de más nota entre las no descartadas. Si todas lo están, antes una de
-    «calidad baja» que una «sin cambios»: mostrar la foto tal cual no sirve."""
-    rank = {None: 0, "calidad_baja": 1, "sin_cambios": 2}
-
-    def key(i):
-        v = variants[i]
-        if v.get("reason") == "sin_cambios":  # entre las "sin cambios", la que más cambió
-            return (2, -(v.get("change") or 0))
-        return (rank.get(v.get("reason"), 1), -v.get("score", 0))
-
-    return min(range(len(variants)), key=key)
+    return variants, next((r for r in results if isinstance(r, ApiError)), None)
 
 
 def to_jpeg(img: Image.Image) -> bytes:
@@ -525,7 +478,7 @@ async def renovate(
         if len(mask_bytes) > 2 * 1024 * 1024:
             raise ApiError(413, "invalid_mask", "La selección de zonas es demasiado grande.")
         mask_arr = read_mask(mask_bytes, img.size)
-    prompt = build_prompt(style, zone_list if mask_arr is not None else [])
+    prompt = build_prompt(style, zone_list if mask_arr is not None else [], strength, is_edit_model(cfg["model"]))
 
     client_id = request.client.host if request.client else "unknown"
     check_rate_limit(client_id, cfg["rate_per_hour"], weight=n)
@@ -543,30 +496,38 @@ async def renovate(
                 result = seg.composite(img, result, mask_arr)
             body = to_jpeg(result)
         else:
-            found, error = await run_in_threadpool(generate_variants, img, prompt, strength, cfg, n, mask_arr)
+            found, error = await run_in_threadpool(generate_batch, img, prompt, strength, cfg, n, mask_arr)
             if not found:
                 raise error
-            judge(found, cfg)
-            retried = False
-            if all(v["discarded"] for v in found):
-                # Todas por debajo del umbral: un reintento (consume cupo) y se
-                # muestra la mejor disponible de todas.
+            box = zone_box(mask_arr, img.size)
+            measured = await run_in_threadpool(check_similarity, found, img, box, cfg["max_similarity"])
+            if not measured:
+                log.error("Fallo del filtro de similitud; se devuelven las variantes sin filtrar")
+            same = [v for v in found if v.get("reason") == "sin_cambios"]
+            regenerated = 0
+            if same:
+                # Casi idénticas al original: se regeneran UNA vez (consume
+                # cupo, una por variante). Las nuevas pasan el mismo filtro.
                 try:
-                    check_rate_limit(client_id, cfg["rate_per_hour"], weight=n)
-                    more, _ = await run_in_threadpool(generate_variants, img, prompt, strength, cfg, n, mask_arr)
-                    judge(more, cfg)
+                    check_rate_limit(client_id, cfg["rate_per_hour"], weight=len(same))
+                    more, _ = await run_in_threadpool(generate_batch, img, prompt, strength, cfg, len(same), mask_arr)
+                    await run_in_threadpool(check_similarity, more, img, box, cfg["max_similarity"])
                     found += more
-                    retried = True
+                    regenerated = len(more)
                 except ApiError:
-                    pass  # sin cupo o crédito para reintentar: se muestra la mejor que hay
+                    pass  # sin cupo o crédito: se sigue con lo que hay
+            if not await run_in_threadpool(score_variants, found, cfg["min_score"]):
+                log.error("Fallo del puntuador de calidad; se devuelven las variantes sin filtrar por calidad")
             best = pick_best(found)
             payload = {
                 "best": best,
-                "retried": retried,
-                "low_quality": found[best]["discarded"],
+                "retried": regenerated > 0,
+                "regenerated": regenerated,
+                "low_quality": bool(found[best].get("discarded")),
                 "variants": [
                     {"image": "data:image/jpeg;base64," + base64.b64encode(to_jpeg(v["image"])).decode(),
-                     **{k: v.get(k) for k in ("score", "aesthetic", "realism", "change", "discarded", "reason")}}
+                     **{k: v.get(k) for k in ("score", "aesthetic", "realism", "similarity", "reason")},
+                     "discarded": bool(v.get("discarded"))}
                     for v in found
                 ],
             }

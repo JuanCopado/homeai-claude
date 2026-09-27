@@ -1,6 +1,7 @@
-"""Varias variantes por petición + filtro de calidad. El generador y el
-puntuador son dobles: aquí se prueba el reparto, los descartes, el reintento
-y el formato; la calibración real está en server/validation/."""
+"""Varias variantes por petición: filtro de similitud (antes del puntuador),
+regeneración de las casi idénticas, puntuador y elección. El generador, CLIP y
+el puntuador son dobles: aquí se prueba el reparto, los descartes, la
+regeneración y el formato; la calibración real está en server/validation/."""
 
 import base64
 import io
@@ -14,7 +15,6 @@ from PIL import Image
 
 import app as service
 import quality
-import segmentation as seg
 
 
 def photo():
@@ -46,15 +46,24 @@ class Gen:
                 self.active -= 1
 
 
-# Puntuación de prueba según el color de la variante: (score, change)
-SCORES = {(250, 0, 0): (0.9, 0.3), (0, 250, 0): (0.7, 0.3), (0, 0, 250): (0.3, 0.3), (181, 170, 160): (0.8, 0.01)}
+# Según el color de la variante: (score estético, similitud CLIP con el original).
+# (181, 170, 160) es casi el original (180, 170, 160).
+SCORES = {(250, 0, 0): (0.9, 0.7), (0, 250, 0): (0.7, 0.7), (0, 0, 250): (0.3, 0.7), (181, 170, 160): (0.8, 0.99)}
+scored = []
 
 
-def fake_score(img, original=None, box=None):
+def lookup(img):
     c = img.convert("RGB").getpixel((400, 300))
-    key = min(SCORES, key=lambda k: sum(abs(a - b) for a, b in zip(k, c)))
-    score, change = SCORES[key]
-    return {"score": score, "aesthetic": 5.0, "realism": 0.9, "change": change}
+    return SCORES[min(SCORES, key=lambda k: sum(abs(a - b) for a, b in zip(k, c)))]
+
+
+def fake_score(img):
+    scored.append(img.convert("RGB").getpixel((400, 300)))
+    return {"score": lookup(img)[0], "aesthetic": 5.0, "realism": 0.9}
+
+
+def fake_similarity(img, original, box=None):
+    return lookup(img)[1]
 
 
 @pytest.fixture
@@ -62,6 +71,8 @@ def api(monkeypatch):
     monkeypatch.setenv("HF_TOKEN", "hf_test")
     monkeypatch.setenv("RATE_LIMIT_PER_HOUR", "100")
     monkeypatch.setattr(quality, "score", fake_score)
+    monkeypatch.setattr(quality, "similarity", fake_similarity)
+    scored.clear()
     service._hits.clear()
     service._active = service._seg_active = 0
     return TestClient(service.app)
@@ -103,31 +114,42 @@ def test_two_variants_in_parallel_best_first_choice(api, monkeypatch):
     assert decode(body["variants"][1]).getpixel((10, 10))[0] > 200
 
 
-def test_variant_without_changes_is_discarded(api, monkeypatch):
-    use(monkeypatch, Gen([(181, 170, 160), (0, 250, 0)]))  # la 1.ª es casi el original
+def test_near_identical_is_regenerated_before_scoring(api, monkeypatch):
+    gen = use(monkeypatch, Gen([(181, 170, 160), (0, 250, 0), (250, 0, 0)]))  # la 1.ª es casi el original
     body = post(api, 2).json()
-    assert body["variants"][0]["discarded"] and body["variants"][0]["reason"] == "sin_cambios"
-    assert body["best"] == 1  # aunque la "sin cambios" tenga más nota (0,8 > 0,7)
+    assert gen.calls == 3 and body["regenerated"] == 1 and body["retried"]
+    v = body["variants"]
+    assert v[0]["discarded"] and v[0]["reason"] == "sin_cambios" and v[0]["similarity"] == 0.99
+    assert v[0]["score"] is None  # el puntuador no se gasta en ella
+    assert len(scored) == 2 and all(c[:2] != (181, 170) for c in scored)
+    assert body["best"] == 2 and v[2]["score"] == 0.9 and not body["low_quality"]
 
 
-def test_low_quality_is_discarded(api, monkeypatch):
-    use(monkeypatch, Gen([(0, 0, 250), (0, 250, 0)]))
+def test_regeneration_that_is_again_identical_shows_the_other(api, monkeypatch):
+    gen = use(monkeypatch, Gen([(181, 170, 160), (0, 250, 0), (181, 170, 160)]))
     body = post(api, 2).json()
+    assert gen.calls == 3 and [v["reason"] for v in body["variants"]] == ["sin_cambios", None, "sin_cambios"]
+    assert body["best"] == 1
+
+
+def test_all_identical_regenerates_each_once_then_shows_least_similar(api, monkeypatch):
+    gen = use(monkeypatch, Gen([(181, 170, 160)]))
+    body = post(api, 2).json()
+    assert gen.calls == 4 and body["regenerated"] == 2 and body["low_quality"]
+    assert not scored and all(v["reason"] == "sin_cambios" for v in body["variants"])
+
+
+def test_low_quality_is_discarded_without_regenerating(api, monkeypatch):
+    gen = use(monkeypatch, Gen([(0, 0, 250), (0, 250, 0)]))
+    body = post(api, 2).json()
+    assert gen.calls == 2 and not body["retried"]
     assert body["variants"][0]["reason"] == "calidad_baja" and body["best"] == 1
 
 
-def test_all_bad_retries_once_then_shows_best_available(api, monkeypatch):
+def test_all_low_quality_shows_best_available(api, monkeypatch):
     gen = use(monkeypatch, Gen([(0, 0, 250)]))  # siempre mala
     body = post(api, 2).json()
-    assert gen.calls == 4 and body["retried"] and body["low_quality"]
-    assert len(body["variants"]) == 4 and all(v["discarded"] for v in body["variants"])
-
-
-def test_retry_rescues_a_good_variant(api, monkeypatch):
-    gen = use(monkeypatch, Gen([(0, 0, 250), (0, 0, 250), (250, 0, 0), (0, 0, 250)]))
-    body = post(api, 2).json()
-    assert gen.calls == 4 and body["retried"] and not body["low_quality"]
-    assert body["variants"][body["best"]]["score"] == 0.9
+    assert gen.calls == 2 and body["low_quality"] and all(v["discarded"] for v in body["variants"])
 
 
 def test_partial_failure_still_returns_the_rest(api, monkeypatch):
@@ -143,9 +165,10 @@ def test_all_failed_returns_the_error(api, monkeypatch):
     assert service._active == 0
 
 
-def test_variants_are_capped(api, monkeypatch):
+def test_variants_are_capped_at_two(api, monkeypatch):
+    monkeypatch.setenv("VARIANTS_MAX", "3")  # aunque se configure más, el máximo es 2
     gen = use(monkeypatch, Gen([(250, 0, 0)]))
-    assert len(post(api, 9).json()["variants"]) == 3 and gen.calls == 3
+    assert len(post(api, 9).json()["variants"]) == 2 and gen.calls == 2
 
 
 def test_each_variant_counts_towards_rate_limit(api, monkeypatch):
@@ -156,21 +179,31 @@ def test_each_variant_counts_towards_rate_limit(api, monkeypatch):
     assert r.status_code == 429 and r.json()["error"] == "rate_limited"
 
 
-def test_retry_without_quota_shows_best_available(api, monkeypatch):
+def test_regeneration_without_quota_shows_best_available(api, monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_PER_HOUR", "2")
-    gen = use(monkeypatch, Gen([(0, 0, 250)]))
+    gen = use(monkeypatch, Gen([(181, 170, 160), (0, 250, 0)]))
     body = post(api, 2).json()
-    assert gen.calls == 2 and not body["retried"] and body["low_quality"]
+    assert gen.calls == 2 and not body["retried"] and body["best"] == 1
 
 
 def test_scorer_failure_returns_unfiltered(api, monkeypatch):
-    def broken(img, original=None, box=None):
+    def broken(img):
         raise RuntimeError("sin pesos del predictor estético")
 
     monkeypatch.setattr(quality, "score", broken)
     use(monkeypatch, Gen([(0, 250, 0), (250, 0, 0)]))
     body = post(api, 2).json()
     assert len(body["variants"]) == 2 and not any(v["discarded"] for v in body["variants"])
+
+
+def test_similarity_failure_skips_the_filter(api, monkeypatch):
+    def broken(img, original, box=None):
+        raise RuntimeError("sin CLIP")
+
+    monkeypatch.setattr(quality, "similarity", broken)
+    gen = use(monkeypatch, Gen([(181, 170, 160), (250, 0, 0)]))
+    body = post(api, 2).json()
+    assert gen.calls == 2 and body["best"] == 1 and not body["variants"][1]["discarded"]
 
 
 def test_mask_is_applied_to_every_variant(api, monkeypatch):
@@ -185,14 +218,14 @@ def test_mask_is_applied_to_every_variant(api, monkeypatch):
         assert np.abs(out[:380] - [180, 170, 160]).max() <= 6  # fuera de la máscara, intacto
 
 
-def test_zone_change_is_measured_on_the_zone_crop(api, monkeypatch):
+def test_zone_similarity_is_measured_on_the_zone_crop(api, monkeypatch):
     seen = []
 
-    def spy(img, original=None, box=None):
+    def spy(img, original, box=None):
         seen.append(box)
-        return fake_score(img, original)
+        return fake_similarity(img, original)
 
-    monkeypatch.setattr(quality, "score", spy)
+    monkeypatch.setattr(quality, "similarity", spy)
     use(monkeypatch, Gen([(250, 0, 0), (0, 250, 0)]))
     mask = np.zeros((600, 800), bool)
     mask[420:, 100:300] = True
@@ -203,7 +236,7 @@ def test_zone_change_is_measured_on_the_zone_crop(api, monkeypatch):
 
 
 def test_when_all_discarded_prefers_low_quality_over_unchanged():
-    v = [{"score": 0.9, "discarded": True, "reason": "sin_cambios"},
+    v = [{"score": 0.9, "similarity": 0.99, "discarded": True, "reason": "sin_cambios"},
          {"score": 0.4, "discarded": True, "reason": "calidad_baja"},
          {"score": 0.3, "discarded": True, "reason": "calidad_baja"}]
     assert service.pick_best(v) == 1
@@ -211,16 +244,13 @@ def test_when_all_discarded_prefers_low_quality_over_unchanged():
     assert service.pick_best(v) == 3
 
 
-def test_all_unchanged_shows_the_one_that_changed_most():
-    v = [{"score": 0.9, "change": 0.001, "discarded": True, "reason": "sin_cambios"},
-         {"score": 0.6, "change": 0.09, "discarded": True, "reason": "sin_cambios"}]
+def test_all_unchanged_shows_the_least_similar():
+    v = [{"similarity": 0.999, "discarded": True, "reason": "sin_cambios"},
+         {"similarity": 0.91, "discarded": True, "reason": "sin_cambios"}]
     assert service.pick_best(v) == 1
 
 
-def test_default_thresholds_are_the_calibrated_ones():
+def test_default_thresholds_and_model():
     cfg = service.settings()
-    assert (cfg["min_score"], cfg["min_change"]) == (0.5, 0.11)
-
-
-def test_default_model_is_served_one():
-    assert service.settings()["model"] == "Qwen/Qwen-Image-Edit"
+    assert (cfg["min_score"], cfg["max_similarity"], cfg["variants_max"]) == (0.5, 0.89, 2)
+    assert cfg["model"] == "Qwen/Qwen-Image-Edit" and cfg["backend"] == "api"

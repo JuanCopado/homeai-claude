@@ -4,8 +4,8 @@
    desenfoque, ruido fuerte, artefactos JPEG extremos, deformación ("warp"),
    sobreexposición. El puntuador debe dar menos nota al fallo que al original.
 2. Las 3 variantes reales de FLUX Kontext de la medición (results_variants/01.jpg,
-   recortadas de la rejilla): señal "change" (1 - similitud CLIP con el
-   original). La variante que casi no cambió debe quedar claramente por debajo.
+   recortadas de la rejilla): similitud CLIP con el original (filtro previo
+   al puntuador). La variante que casi no cambió debe quedar claramente por debajo.
 
 Salida: results_quality/report.md.
 """
@@ -71,18 +71,19 @@ def main() -> int:
     w = W // 4
     tiles = [grid.crop((i * w, 20, (i + 1) * w, H)) for i in range(4)]
     lines += ["## 2. Variantes reales (FLUX Kontext, «estilo nórdico»)", "",
-              "| Variante | A ojo | score | change (1 - similitud CLIP) |", "|---|---|---|---|"]
+              "| Variante | A ojo | score | similitud CLIP con el original |", "|---|---|---|---|"]
     eye = {1: "casi sin cambios", 2: "reforma nórdica completa", 3: "cambio intermedio"}
     for i in range(1, 4):
-        sc = quality.score(tiles[i], tiles[0])
-        lines.append(f"| v{i} | {eye[i]} | {sc['score']} | {sc['change']} |")
-    same = quality.score(tiles[0], tiles[0])["change"]
-    lines += ["", f"Referencia: original contra sí mismo, change = {same}.", "",
+        sc = quality.score(tiles[i])
+        lines.append(f"| v{i} | {eye[i]} | {sc['score']} | {quality.similarity(tiles[i], tiles[0])} |")
+    same = quality.similarity(tiles[0], tiles[0])
+    lines += ["", f"Referencia: original contra sí mismo, similitud = {same}.", "",
               "## Umbrales elegidos (server/app.py)", "",
               "- `QUALITY_MIN_SCORE = 0.5`: en la primera calibración descartó 21/30 fallos graves y ninguna",
               "  variante real (0.71–0.78). Los fallos leves (algo borrosa/quemada) no se descartan pero",
               "  quedan por debajo en la clasificación.",
-              "- `QUALITY_MIN_CHANGE = 0.11`: entre «sin cambios» (~0.10) e «intermedio» (~0.12).",
+              "- `SIMILARITY_MAX = 0.89` (antes QUALITY_MIN_CHANGE = 0.11): entre «sin cambios» (~0.90)",
+              "  e «intermedio» (~0.88). Se aplica ANTES del puntuador y regenera las casi idénticas.",
               "  **Provisional: 1 sola foto real.** Recalibrar con la medición completa cuando haya crédito,",
               "  también en modo zonas (ahí el cambio se mide en el recorte de la zona)."]
     (OUT / "report.md").write_text("\n".join(lines), encoding="utf-8")

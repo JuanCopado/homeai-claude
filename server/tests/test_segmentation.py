@@ -177,7 +177,7 @@ def test_masked_generation_only_changes_selected_zone(api, env):
     far_outside = ~dilate(mask, 16)
     assert np.abs(out[far_outside] - [180, 170, 160]).max() <= 6
     assert np.abs(out[erode(mask, 15)] - [20, 200, 40]).max() <= 6
-    assert env.calls[0]["prompt"].startswith("the floor redesigned: madera clara")
+    assert env.calls[0]["prompt"].startswith("Redesign only the floor of this room in this style: madera clara.")
 
 
 def test_masked_generation_multiple_zones(api, env):
@@ -188,7 +188,7 @@ def test_masked_generation_multiple_zones(api, env):
     out = np.asarray(Image.open(io.BytesIO(r.content)).convert("RGB"), dtype=int)
     assert np.abs(out[~dilate(mask, 16)] - [180, 170, 160]).max() <= 6
     assert np.abs(out[erode(mask, 15)] - [20, 200, 40]).max() <= 6
-    assert "the walls and the furniture redesigned" in env.calls[0]["prompt"]
+    assert "Redesign only the walls and the furniture of this room" in env.calls[0]["prompt"]
 
 
 def test_mask_of_different_size_is_scaled(api, env):
@@ -220,4 +220,4 @@ def test_jpeg_mask_is_rejected(api, env):
 def test_without_mask_behaves_as_before(api, env):
     r = renovate(api, None, "")
     assert r.status_code == 200
-    assert env.calls[0]["prompt"].startswith("madera clara, same room")
+    assert env.calls[0]["prompt"].startswith("Redecorate this room in this style: madera clara.")
