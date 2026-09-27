@@ -78,7 +78,7 @@ Conclusiones:
    - Con una L4 haría falta sostener unas 13 peticiones por hora para igualar a
      la API.
    - Además, el arranque en frío es de varios minutos, porque hay que cargar
-     ~58 GB de pesos.
+     ~54 GB de pesos.
    - Revisar cuando el tráfico sea estable o cuando Colab mida el tiempo real
      por imagen.
 4. **El servicio actual (Space CPU gratuito) no cambia.** El filtro de similitud

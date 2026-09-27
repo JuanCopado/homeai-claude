@@ -35,7 +35,7 @@ de Hugging Face y **no necesita ningún token**.
    `server/validation/results_colab/` del repositorio o pásaselo a Claude.
 
 **Qué hace y cuánto tarda (estimación, se mide al ejecutarlo)**
-- Descarga ~58 GB de pesos (codificador Qwen2.5-VL 7B + transformer de 20B) y los
+- Descarga ~54 GB de pesos (codificador Qwen2.5-VL 7B + transformer de 20B) y los
   carga **en 4 bits** para que quepan en los 16 GB de la T4, en dos fases (primero
   codifica todas las instrucciones, luego genera), borrando de disco lo que ya usó.
 - 10 fotos reales × 2 variantes = 20 generaciones (+ las regeneradas), con la

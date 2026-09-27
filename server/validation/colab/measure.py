@@ -111,7 +111,7 @@ def _free():
 def drop_cache(repo: str, folder: str) -> float:
     """Borra de la caché de HF una subcarpeta ya usada (p. ej. el codificador
     tras la fase 1) para que el disco de Colab (~80 GB libres) no se llene:
-    codificador 16,6 GB + transformer 40,9 GB + SDXL 7 GB no caben a la vez
+    codificador 15,4 GB + transformer 38,1 GB + SDXL 7 GB no caben a la vez
     con holgura. Devuelve los GB liberados."""
     try:
         from huggingface_hub import scan_cache_dir

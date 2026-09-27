@@ -159,7 +159,7 @@ Lógica en `pipeline.py` (la misma que ejecuta el notebook de Colab).
 `local_qwen.py` ejecuta el mismo modelo con diffusers (`QwenImageEditPipeline`)
 en una GPU propia, con la misma interfaz que la API (el filtro de similitud y
 el puntuador no cambian). Instalar `requirements-gpu.txt` sobre un torch CUDA.
-El modelo son ~58 GB en bf16 (transformer 20B + Qwen2.5-VL 7B): con
+El modelo son ~54 GB en bf16 (transformer 20B + Qwen2.5-VL 7B): con
 `QWEN_QUANT=nf4` (4 bits) cabe en una GPU de 24 GB; sin cuantizar hace falta
 una de 80 GB. `QWEN_LIGHTNING=1` usa la LoRA Lightning (8 pasos sin CFG).
 **No probado con los pesos reales** (este entorno no tiene GPU); el código se
