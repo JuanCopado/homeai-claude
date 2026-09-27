@@ -8,7 +8,9 @@ en `README.md`; este archivo es la orientación rápida para quien va a tocar c�
 HomeAI es una web app de planificación integral de reforma: importar un plano,
 calibrar su escala, reconocer estancias, generar una maqueta 3D conceptual,
 elegir acabados/materiales por estancia, presupuestar y organizar el plan de obra.
-Todo corre **en el navegador del usuario**, sin backend propio.
+Todo corre **en el navegador del usuario**. La única pieza de servidor es
+`server/` (microservicio opcional para "Visualiza tu reforma con IA", que guarda
+el token de Hugging Face; ver `server/README.md`).
 
 ## Stack
 
@@ -59,20 +61,25 @@ Todo corre **en el navegador del usuario**, sin backend propio.
 - **Maqueta 3D**: extrusión conceptual de los muros vectorizados sobre un canvas
   2D con proyección manual (no WebGL, no motor 3D real); exporta `.obj`/`.mtl`.
   No resuelve habitaciones con precisión BIM (ver limitaciones en `README.md`).
-- No hay ninguna llamada a un LLM ni a una API de terceros con coste por token en
-  este momento — todo el procesamiento "IA" actual es local. Si se añade algo que
-  sí llame a un modelo externo, es el primer caso que necesita revisión de
-  Security (claves, coste, latencia, qué datos salen del dispositivo).
+- **Visualización de reforma** (`ai-renovation.js`/`.css` + `server/`): la única
+  función que llama a un modelo externo con coste por uso (Hugging Face
+  Inference Providers, image-to-image). El navegador nunca ve el token: llama al
+  microservicio de `server/` (FastAPI, desplegable como Space de Hugging Face),
+  cuya URL se configura en `<meta name="homeai-renovation-endpoint">` de
+  `index.html` (vacía = función desactivada). Todo lo demás sigue siendo local.
+  Cualquier cambio aquí necesita revisión de Security (claves, coste, qué datos
+  salen del dispositivo).
 
 ## Verificación (lo que QA/todo agente debe ejecutar antes de dar algo por terminado)
 
 ```
 npm test          # run-tests.mjs: tests/design-state.test.mjs + planner-geometry.test.cjs
+cd server && pytest -q   # servicio de visualización (sin llamar a Hugging Face)
 npm run lint      # eslint . && stylelint "*.css"
 node build.mjs    # regenerar dist/ tras cualquier cambio de app.js/*.css
 ```
 
-CI en `.github/workflows/ci.yml` (`npm test` + `npm run lint:js` en cada push/PR; `lint:css` no se incluye mientras sigan los 70 duplicados conocidos de `styles.css`). La verificación visual se hace localmente: servir
+CI en `.github/workflows/ci.yml` (`npm test` + `npm run lint:js` + `pytest` de `server/` en cada push/PR; `lint:css` no se incluye mientras sigan los 70 duplicados conocidos de `styles.css`). La verificación visual se hace localmente: servir
 `dist/` con `python3 -m http.server` y recorrer las vistas
 (`overview`, `plan`, `model`, `design`, `budget`, `tasks`, `docs`) en varios
 anchos (390/921/1440px, mínimo) con Playwright

@@ -10,6 +10,86 @@
 
 ## Hecho
 
+- **Visualización de reforma con IA, fase 1 (MVP) (2026-09-27).** Foto real de
+  la estancia + estilo → la misma estancia redecorada, vía Hugging Face
+  Inference Providers (`image_to_image`). Primera función de HomeAI que envía
+  datos fuera del dispositivo; resuelve la "sección 0" de `PROVEEDORES_IA.md`
+  con la opción 1 (backend propio que guarda la clave).
+  - **Arquitectura:** no había backend, así que es un **microservicio aparte**
+    en `server/` (FastAPI + `huggingface_hub`, `Dockerfile` listo para un
+    Hugging Face Space CPU gratuito). `HF_TOKEN` solo como secreto del
+    servidor. Fase 2 prevista: `HF_MODEL` → URL de un Inference Endpoint con
+    SD + ControlNet, sin tocar el navegador.
+  - **Pipeline:** valida formato (JPG/PNG/WebP) y tamaño, aplica orientación
+    EXIF, quita metadatos, ≤1024 px múltiplo de 8, autocontraste en fotos muy
+    oscuras, prompt de estilo + sufijo "misma estancia, mismas paredes y
+    ventanas" + prompt negativo, `strength` 0,30–0,80. Errores de HF (402
+    crédito agotado, 429, 503, timeout, token inválido, modelo no servido)
+    traducidos a códigos claros. Límite por IP/hora y de concurrencia.
+  - **UX** (`ai-renovation.js`/`.css`, vista Diseño): elegir foto → estilo
+    (6 atajos o texto libre) + intensidad → consentimiento explícito →
+    espera con contador y cancelar → comparación antes/después con
+    deslizador → guardar en Archivos (IndexedDB local) / descartar / probar
+    otro estilo. Desactivada mientras
+    `<meta name="homeai-renovation-endpoint">` esté vacía.
+  - **Privacidad:** el navegador reduce y re-codifica la foto (sin EXIF/GPS)
+    antes de enviarla; el servidor no escribe nada en disco (ni temporales),
+    no registra fotos ni textos y responde `no-store`.
+  - **QA:** 32 tests `pytest` (fotos pequeñas, panorámicas, oscuras, PNG con
+    transparencia, WebP, GIF, HEIC, JPEG truncado, EXIF con GPS y rotación,
+    límites de tamaño, todos los errores de HF, rate limit, concurrencia,
+    CORS, subida que no toca disco) y Playwright con API simulada a 390 y
+    1440 px (validaciones, consentimiento, espera, resultado, guardar, 429,
+    crédito agotado, respuesta HTML, sin red, cancelar; sin errores de
+    consola ni scroll horizontal) + regresión de las 7 vistas. CI ejecuta
+    también `pytest`.
+  - **Prueba de punta a punta (2026-09-27):** navegador real → `server/app.py`
+    arrancado con uvicorn → `huggingface_hub` real → un endpoint local que imita
+    un Inference Endpoint (`HF_MODEL` = URL). Confirmado: el token viaja como
+    `Bearer`, el modelo recibe prompt, prompt negativo y `strength`, la foto
+    llega a 1024×768 sin EXIF, los HTTP 402/429/503/500/401 reales de la
+    librería se traducen bien, CORS bloquea orígenes no permitidos, y ni el
+    token ni la foto ni el texto aparecen en los logs. CI arreglado
+    (`server/pytest.ini`: `pytest` sin `python -m` no encontraba `app.py`).
+  - **No verificado:** ninguna llamada real a Hugging Face (el proxy de este
+    entorno bloquea huggingface.co). Qué modelo sirve de verdad para
+    image-to-image hay que comprobarlo con `server/check_model.py` antes de
+    desplegar.
+
+## Pendiente de la visualización con IA
+
+- **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
+  validar con fotos reales (decisión de Juan, 2026-09-27).** Orden acordado:
+  1) validar la segmentación con 5–10 fotos reales, 2) solo entonces servidor
+  + interfaz. Bloqueos en la sesión en que se pidió: huggingface.co bloqueado
+  por la política de red del entorno, sin `HF_TOKEN`, sin fotos reales.
+  Para retomarlo: permitir `huggingface.co` y `router.huggingface.co` en el
+  entorno, `HF_TOKEN` como variable de entorno, y fotos en
+  `server/validation/fotos/` (mejor fotos con licencia libre: lo que entra en
+  git queda en el historial).
+  Correcciones al encargo: la fase 1 es img2img (ControlNet no está
+  implementado); `runwayml/stable-diffusion-inpainting` ya no existe (espejo:
+  `stable-diffusion-v1-5/stable-diffusion-inpainting`); `InferenceClient` no
+  tiene tarea de inpainting con máscara.
+  Diseño propuesto: segmentación con `nvidia/segformer-b0-finetuned-ade-512-512`
+  (`InferenceClient.image_segmentation`), clases ADE20K agrupadas en zonas
+  (pared; suelo; techo; ventana/puerta; mobiliario = cama, sofá, mesa, silla,
+  armario…), calculada **una vez al subir la foto** y devuelta al navegador
+  (el servidor no la guarda); el navegador envía las zonas elegidas con la
+  petición de generación; el servidor genera y **compone el resultado solo
+  dentro de la máscara** (borde suavizado), de modo que fuera de ella la foto
+  queda idéntica píxel a píxel aunque el proveedor no sepa hacer inpainting.
+
+- Desplegar `server/` como Space, poner `HF_TOKEN` como secreto, elegir un
+  `HF_MODEL` que `check_model.py` confirme, y poner la URL en `index.html`.
+- Revisar la política de retención del proveedor que sirva el modelo
+  (fal-ai, Replicate…) y reflejarla en el aviso de privacidad.
+- El crédito gratuito de HF da para muy pocas imágenes: para usuarios reales,
+  cuenta con facturación y tope de gasto.
+- Fase 2: ControlNet (depth/canny) en un Inference Endpoint o Space con GPU
+  para bloquear de verdad la geometría.
+
+
 - **Auditoría del repositorio y correcciones (2026-09-27).** `homeai-claude` es
   el repositorio principal (`JuanCopado/HOMEAI` es una versión anterior, sin las
   funciones de IA local ni el Digital Twin). Hallazgo principal: la subida inicial

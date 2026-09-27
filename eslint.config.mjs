@@ -18,7 +18,7 @@ const crossFileGlobals = {
   renderTasks: 'readonly', renderDocs: 'readonly',
   renderModel: 'readonly', renderMini: 'readonly', addNavHandlers: 'readonly',
   colorOptions: 'readonly', money: 'readonly', defaultCurrency: 'readonly', budgetTotal: 'readonly',
-  download: 'readonly', wallSegments: 'writable', minX: 'writable', minY: 'writable',
+  download: 'readonly', handleDocument: 'readonly', wallSegments: 'writable', minX: 'writable', minY: 'writable',
   maxX: 'writable', maxY: 'writable',
   // 'renderDesign', 'goView' y 'renderOverview' se definen en app.js pero luego se
   // REASIGNAN (monkey-patch) desde catalog-v16.js/studio-pro.js/workspace-v17.js para
@@ -46,12 +46,13 @@ const browserExtraGlobals = {
   devicePixelRatio: 'readonly', structuredClone: 'readonly',
   CSS: 'readonly', Event: 'readonly', FormData: 'readonly', DOMPoint: 'readonly',
   HTMLCanvasElement: 'readonly', ImageData: 'readonly',
+  createImageBitmap: 'readonly', AbortController: 'readonly', File: 'readonly',
 };
 
 export default [
   js.configs.recommended,
   {
-    ignores: ['dist/**', 'node_modules/**', 'vite.config.mjs', 'build.mjs', 'run-tests.mjs', 'tests/**', 'planner-geometry.test.cjs'],
+    ignores: ['dist/**', 'node_modules/**', 'vite.config.mjs', 'build.mjs', 'run-tests.mjs', 'server/**', 'tests/**', 'planner-geometry.test.cjs'],
   },
   {
     files: ['*.js'],

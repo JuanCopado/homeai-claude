@@ -12,6 +12,10 @@
 
 ## 0. Un problema de arquitectura que hay que resolver antes de elegir proveedor
 
+> **Decidido (2026-09-27) para generación de interiores:** opción 1, backend
+> propio mínimo. Implementado en `server/` (Hugging Face Inference Providers,
+> token solo en el servidor). Ver `server/README.md` y `CURRENT_STATE.md`.
+
 HomeAI hoy es una app estática sin backend: todo corre en el navegador del
 usuario, y el `README.md` promete "nada sale de tu dispositivo". Cualquiera
 de las opciones de pago de abajo se llama con una API key — y una API key
