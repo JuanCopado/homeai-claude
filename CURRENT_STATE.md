@@ -43,6 +43,14 @@
     crédito agotado, respuesta HTML, sin red, cancelar; sin errores de
     consola ni scroll horizontal) + regresión de las 7 vistas. CI ejecuta
     también `pytest`.
+  - **Prueba de punta a punta (2026-09-27):** navegador real → `server/app.py`
+    arrancado con uvicorn → `huggingface_hub` real → un endpoint local que imita
+    un Inference Endpoint (`HF_MODEL` = URL). Confirmado: el token viaja como
+    `Bearer`, el modelo recibe prompt, prompt negativo y `strength`, la foto
+    llega a 1024×768 sin EXIF, los HTTP 402/429/503/500/401 reales de la
+    librería se traducen bien, CORS bloquea orígenes no permitidos, y ni el
+    token ni la foto ni el texto aparecen en los logs. CI arreglado
+    (`server/pytest.ini`: `pytest` sin `python -m` no encontraba `app.py`).
   - **No verificado:** ninguna llamada real a Hugging Face (el proxy de este
     entorno bloquea huggingface.co). Qué modelo sirve de verdad para
     image-to-image hay que comprobarlo con `server/check_model.py` antes de
