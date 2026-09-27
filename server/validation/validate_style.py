@@ -35,8 +35,9 @@ STYLES = {
     # CLIP llamaba "minimalista" (0,97) a una habitación vacía.
     "_vacia": ("(vacía)", "an empty unfurnished room with bare walls"),
     "_objeto": ("(objeto)", "a close-up photo of a single object or piece of furniture"),
+    "_exterior": ("(exterior)", "the outside of a building seen from the street or garden"),
 }
-SINKS = {"_vacia", "_objeto"}
+SINKS = {"_vacia", "_objeto", "_exterior"}
 TEMPLATE = "a photo of {}"
 # Búsqueda -> estilo esperado ("?" = caso difícil sin estilo claro)
 # (La ronda 1 buscaba "scandinavian interior" y "bohemian interior": trajo la
@@ -55,6 +56,51 @@ SEARCHES = [
     ("filetype:bitmap empty apartment room", "_vacia"),
     ("filetype:bitmap dark room interior night", "?"),
 ]
+# Openverse (buscador de imágenes con licencia libre: Flickr y otras fuentes),
+# para los estilos que Wikimedia no cubre bien. Solo fotografías con licencia
+# CC0, dominio público, CC BY o CC BY-SA (se atribuyen en el informe).
+OPENVERSE = [
+    ("scandinavian living room", "escandinavo"),
+    ("scandinavian interior white wood", "escandinavo"),
+    ("boho living room", "bohemio"),
+    ("bohemian bedroom plants macrame", "bohemio"),
+    ("classic living room chandelier moldings", "clasico"),
+    ("victorian parlor interior", "clasico"),
+    ("mediterranean living room", "mediterraneo"),
+    ("greek island house interior whitewashed", "mediterraneo"),
+    ("house exterior facade", "_exterior"),
+]
+OV_PER_QUERY = 2
+
+
+def fetch_openverse(query: str, n: int) -> list[dict]:
+    import io
+
+    import requests
+
+    try:
+        data = requests.get("https://api.openverse.org/v1/images/", headers=v.UA, timeout=30, params={
+            "q": query, "license": "cc0,pdm,by,by-sa", "category": "photograph", "page_size": 20,
+            "mature": "false"}).json()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[aviso] Openverse '{query}' falló: {exc}")
+        return []
+    out = []
+    for r in data.get("results", []):
+        if (r.get("width") or 0) < 600:
+            continue
+        try:
+            raw = requests.get(r["url"], headers=v.UA, timeout=60).content
+            img = Image.open(io.BytesIO(raw))
+            img.load()
+        except Exception:  # noqa: BLE001
+            continue
+        lic = f"CC {r.get('license', '').upper()} {r.get('license_version') or ''}".strip()
+        out.append({"image": img, "source": r.get("foreign_landing_url") or r["url"], "title": r.get("title") or r["id"],
+                    "license": lic, "artist": (r.get("creator") or "desconocido")[:80], "query": query})
+        if len(out) >= n:
+            break
+    return out
 OUT = v.HERE / "results_style"
 
 
@@ -86,6 +132,12 @@ def main() -> int:
         for ph in v.fetch_commons(max_total=2):
             if any(ph["title"] == other["title"] for other in photos):
                 continue  # la misma foto puede salir en dos búsquedas
+            ph["expected"] = expected
+            photos.append(ph)
+    for query, expected in OPENVERSE:
+        for ph in fetch_openverse(query, OV_PER_QUERY):
+            if any(ph["title"] == other["title"] for other in photos):
+                continue
             ph["expected"] = expected
             photos.append(ph)
     keys = list(STYLES)
@@ -143,7 +195,13 @@ def main() -> int:
         hits = sum(s["models"][name]["top3"][0][0] == s["expected"] for s in labelled)
         t = np.mean([results[name][i][1] for i in range(len(photos))])
         blocked = sum(s["models"][name]["top3"][0][0] in SINKS for s in sinks)
-        lines.append(f"| {name} | {hits}/{len(labelled)} (vacías sin sugerencia: {blocked}/{len(sinks)}) | {t:.2f} s |")
+        lines.append(f"| {name} | {hits}/{len(labelled)} (vacías/exteriores sin sugerencia: {blocked}/{len(sinks)}) | {t:.2f} s |")
+    lines += ["", "## Aciertos por estilo (large14)", "", "| Estilo | Aciertos |", "|---|---|"]
+    for key in [k for k in STYLES if k not in SINKS]:
+        group = [s for s in labelled if s["expected"] == key]
+        if group:
+            hits = sum(s["models"]["large14"]["top3"][0][0] == key for s in group)
+            lines.append(f"| {STYLES[key][0]} | {hits}/{len(group)} |")
     lines += ["", "## Umbral de confianza (top-1 ≥ p y margen ≥ m)", "",
               "| Modelo | p | m | Se mostraría en | Aciertos entre las mostradas |", "|---|---|---|---|---|"]
     for name in MODELS:
