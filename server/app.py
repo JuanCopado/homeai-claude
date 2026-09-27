@@ -30,6 +30,7 @@ from PIL import Image, ImageOps, ImageStat, UnidentifiedImageError
 from starlette.formparsers import MultiPartParser
 
 import segmentation as seg
+import style as style_mod
 
 log = logging.getLogger("homeai.renovation")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -88,6 +89,7 @@ def settings() -> dict:
         "max_concurrent": env_int("MAX_CONCURRENT_GENERATIONS", 2),
         "seg_rate_per_hour": env_int("SEG_RATE_LIMIT_PER_HOUR", 30),
         "seg_concurrent": env_int("MAX_CONCURRENT_SEGMENTATIONS", 2),
+        "style_rate_per_hour": env_int("STYLE_RATE_LIMIT_PER_HOUR", 30),
     }
 
 
@@ -319,7 +321,7 @@ app.add_middleware(
 async def limit_body_size(request: Request, call_next):
     """Rechaza cuerpos grandes ANTES de que se lean y se parseen: sin esto, una
     subida de varios GB se procesaría entera antes de llegar a renovate()."""
-    if request.method == "POST" and request.url.path in ("/api/renovate", "/api/segment"):
+    if request.method == "POST" and request.url.path in ("/api/renovate", "/api/segment", "/api/style"):
         # margen para el resto del formulario, incluida la máscara PNG (≤1024 px, 1 bit útil)
         limit = settings()["max_upload"] + 2 * 1024 * 1024
         length = request.headers.get("content-length")
@@ -388,6 +390,32 @@ async def segment_photo(request: Request, image: UploadFile = File(...)):
         },
         headers={"Cache-Control": "no-store"},
     )
+
+
+@app.post("/api/style")
+async def detect_style(request: Request, image: UploadFile = File(...)):
+    """Detecta el estilo actual de la habitación (CLIP zero-shot, en el propio
+    servicio). No guarda nada. Si el modelo duda o la foto no muestra una
+    estancia con muebles, devuelve suggest=false y un motivo."""
+    from starlette.concurrency import run_in_threadpool
+
+    cfg = settings()
+    img = await read_photo(image, cfg)
+    check_rate_limit("style:" + (request.client.host if request.client else "unknown"), cfg["style_rate_per_hour"])
+    # Comparte los huecos de CPU con la segmentación: ambas corren en este servicio.
+    acquire_seg_slot(cfg["seg_concurrent"])
+    started = time.monotonic()
+    try:
+        result = await run_in_threadpool(style_mod.classify, img)
+    except ApiError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Fallo en la detección de estilo")
+        raise ApiError(503, "style_unavailable", "No se pudo detectar el estilo ahora mismo.") from exc
+    finally:
+        release_seg_slot()
+        log.info("style seconds=%.1f", time.monotonic() - started)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/renovate")

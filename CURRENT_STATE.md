@@ -90,6 +90,18 @@
     **Siguen sin validar con fotos buenas: escandinavo, bohemio y
     mediterráneo** (industrial solo en ronda 1, cuando las "industriales"
     resultaron ser fachadas de lofts).
+  - **Integrada (2026-09-27):** `server/style.py` + `POST /api/style` (CLIP
+    large/14 en el servicio, umbral 0,5 / 0,2, etiquetas de no-sugerir vacía /
+    objeto / exterior); en la interfaz, chip "Parece: X ▾" editable sobre la
+    foto, nota "detectado automáticamente", y 2–3 estilos de destino marcados
+    como "sugerido" (nunca seleccionados solos); si no hay estilo claro, se
+    explica por qué y se puede indicar a mano; sin consentimiento no se envía
+    nada. Verificado: 13 tests nuevos (70 en total); navegador → servidor real
+    (CLIP simulado de forma determinista) a 390 y 1440 px: estilo claro,
+    corrección manual, "sin estilo claro", habitación vacía, foto dudosa,
+    servicio sin `/api/style` (404), generación con un estilo sugerido, sin
+    errores de consola; regresión de zonas, foto entera y 7 vistas. Código de
+    producción con CLIP real en GitHub Actions: `validation/results_style_server/`.
   - Pendiente (en cola tras esto): filtro de calidad con varias variantes.
 
 - **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
