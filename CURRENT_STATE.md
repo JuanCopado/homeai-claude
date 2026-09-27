@@ -10,6 +10,39 @@
 
 ## Hecho
 
+- **Auditoría del repositorio y correcciones (2026-09-27).** `homeai-claude` es
+  el repositorio principal (`JuanCopado/HOMEAI` es una versión anterior, sin las
+  funciones de IA local ni el Digital Twin). Hallazgo principal: la subida inicial
+  no incluyó `assets/`, `tests/` ni `.openai/`. Corregido lo que se podía corregir
+  sin esos archivos:
+  - `npm test` pasa por `run-tests.mjs`: ejecuta `planner-geometry.test.cjs`
+    (30 aserciones) aunque falte `tests/design-state.test.mjs`, y avisa de lo que
+    falta (antes abortaba sin ejecutar nada).
+  - `build.mjs` falla con un mensaje claro si falta `assets/`.
+  - `sw.js` precachea archivo a archivo (`Promise.allSettled`) en vez de
+    `cache.addAll`: un archivo ausente ya no deja la PWA sin modo offline. Caché
+    `homeai-studio-v19`. Verificado con Playwright: 28 archivos en caché (antes 0
+    con `assets/` ausente), 7 vistas × 390/921/1440 px sin errores de consola.
+  - Tesseract fijado a `tesseract.js@5.1.1` (antes `@5`, versión flotante).
+  - 4 `catch(e)` sin usar en `app.js` → `catch` (quedan 3 avisos de lint).
+  - CI mínimo en `.github/workflows/ci.yml` (`lint:js` + `test`).
+  - Recuento de archivos corregido en `AGENTS.md`, `PROJECT.md` y
+    `eslint.config.mjs` (13 JS / 11 CSS).
+
+## Pendiente de la auditoría (2026-09-27)
+
+- **Subir `assets/`, `tests/` y `.openai/hosting.json`** desde la copia local de
+  Juan. Sin `assets/` la build no se puede generar ni publicar.
+- SRI para Tesseract: hash candidato calculado del tarball npm 5.1.1
+  (`sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F`),
+  no aplicado porque el proxy de este entorno bloquea jsdelivr y no se pudo
+  comprobar que coincide byte a byte. Tampoco hay CSP en `index.html`: añadirla
+  requiere probar OCR, WebLLM y diffusers (workers/wasm/blob) en un navegador real.
+- `AGENTS.md` referencia `.claude/agents/*.md`, que no existen en el repositorio.
+- `JuanCopado/HOMEAI`: `BACKUP_STATUS.md`/`docs/project-manifest.json` dicen que
+  no hay código fuente (ya lo hay) y su `CURRENT_STATE.md` no corresponde a este
+  proyecto; decidir si se archiva o se sincroniza con este repositorio.
+
 - **Opciones gratuitas/locales de IA (2026-09-26): implementadas dos de las
   tres, la tercera bloqueada por seguridad del entorno de desarrollo — sin
   comprometer proveedores de pago.** Juan pidió explícitamente implementar
