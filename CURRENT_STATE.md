@@ -58,7 +58,65 @@
 
 ## Pendiente de la visualización con IA
 
-- **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
+- **En cola (pedidas por Juan el 2026-09-27), en este orden:**
+  1. Detección automática de estilo de interior (CLIP zero-shot, con nivel de
+     confianza para no sugerir si duda; chip corregible y sugerencias de
+     estilos de destino). Primer paso: validar con 10–15 fotos antes de la
+     interfaz — en marcha en la rama `claude/estilo-interior`.
+  2. Filtro de calidad: varias variantes por petición y puntuación estética
+     (LAION aesthetic o CLIP zero-shot), empezando por medir 2 variantes
+     (tiempo y calidad) antes de subir a 3.
+
+- **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
+  (`server/validation/`, workflow `validate-segmentation.yml`, rama
+  `claude/validacion-segmentacion`; el entorno no llega a huggingface.co).
+  SegFormer-b0 ADE20K sobre 10 fotos reales de pisos de Wikimedia Commons
+  (licencias libres, atribución en `server/validation/results/report.md`):
+  - **Pared, suelo y techo: fiables** en las 10 (confianza media 0,73–0,98),
+    también con poca luz (salón vacío oscuro, salón al atardecer).
+  - **Mobiliario: aceptable pero con bordes flojos** (confianza 0,48–0,86):
+    armarios blancos sobre pared blanca se confunden con pared, la base de
+    una isla de cocina sale como pared, unas puertas dobles como mobiliario.
+  - **Espejos y cristales: problemáticos** (reflejos clasificados como
+    ventana; mampara de ducha como ventana/puerta en la ronda 1). El espejo
+    ya se excluye de las zonas.
+  - Ronda 1 descartada como muestra (la búsqueda trajo cuadros de museo y
+    exteriores); ronda 2 filtra por EXIF de cámara y descarta exteriores.
+  - Sin probar aún: buhardillas/techos inclinados.
+  - Conclusión: sirve como punto de partida si el usuario **ve y puede
+    corregir** la zona antes de generar; no como verdad absoluta.
+  - **Ronda 3 (b0 vs b2 vs b4, mismas 10 fotos,
+    `server/validation/results_compare/`):** confianza media en mobiliario
+    0,69 → 0,83 → 0,86; ventana/puerta 0,78 → 0,87 → 0,89; pared/suelo/techo
+    ya altas y suben algo. Tiempo en CPU de 2 núcleos: 0,9 s → 2,7 s → 3,2 s
+    por foto. b2/b4 arreglan los armarios blancos sobre pared blanca y las
+    puertas; la base blanca de la isla de cocina sigue saliendo como pared en
+    los tres. **Recomendación: b4** (mejor en todo por +0,5 s respecto a b2;
+    la segmentación se hace una vez por foto), ejecutado dentro del propio
+    servicio (sin depender de que un proveedor de HF sirva el modelo y sin
+    enviar la foto a otro tercero para segmentar).
+- **Segmentación por zonas — IMPLEMENTADA (2026-09-27)** tras la validación.
+  Servidor: `server/segmentation.py` (SegFormer-b4 en CPU, zonas, composición
+  con máscara), `POST /api/segment` y `mask`/`zones` en `/api/renovate`.
+  Interfaz (`ai-renovation.js`): consentimiento antes de detectar, "Solo
+  algunas zonas" / "Toda la foto", foto con la selección en verde, tocar zona
+  o botones por zona (con %), pincel ＋/－, "Quitar ajustes", resumen de lo que
+  se modificará, y si la detección falla se pasa a "Toda la foto" con el
+  motivo visible. Verificado: 57 tests `pytest` (composición exacta fuera de
+  la máscara, varias zonas, máscaras inválidas/vacías/de otro tamaño, límites
+  y fallos del modelo); código de producción con SegFormer-b4 real en
+  GitHub Actions sobre 6 fotos (`validation/results_server/`); navegador real
+  → servidor real (segmentación simulada con zonas conocidas, generación con
+  endpoint local): lo no seleccionado queda intacto (diferencia 0), lo borrado
+  con pincel también, varias zonas, foto nueva reinicia, fallo → toda la foto,
+  sin errores de consola ni scroll horizontal a 390 y 1440 px; regresión de
+  las 7 vistas y del flujo de foto entera.
+  Resultado con el modelo real (6 fotos × 2 selecciones): **0,000 % de fuga
+  fuera de la máscara en los 12 casos** (`validation/results_server/report.md`).
+  Pendiente: probar en un despliegue real (Space) y con buhardillas; el
+  endpoint de segmentación no tiene autenticación (límite por IP y
+  concurrencia), como el resto del servicio.
+- (Histórico) **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
   validar con fotos reales (decisión de Juan, 2026-09-27).** Orden acordado:
   1) validar la segmentación con 5–10 fotos reales, 2) solo entonces servidor
   + interfaz. Bloqueos en la sesión en que se pidió: huggingface.co bloqueado

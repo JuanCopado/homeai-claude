@@ -46,6 +46,38 @@ foto ─► reduce a ≤1024 px,  ─►  valida formato/tamaño,       ─►  
   canny). Es lo que de verdad "bloquea" la geometría; img2img solo la conserva
   en la medida en que `strength` sea bajo. El navegador no cambia.
 
+## Zonas: transformar solo pared, suelo, techo o mobiliario
+
+```
+foto ─► POST /api/segment ─► SegFormer-b4 (ADE20K, CPU, dentro del servicio)
+                             └► mapa de zonas (PNG) + % por zona ─► navegador
+navegador: el usuario toca zonas / ajusta con pincel ─► máscara PNG
+foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
+                             └► composición: resultado SOLO dentro de la máscara
+```
+
+- **Por qué b4:** validado con 10 fotos reales de pisos frente a b0 y b2
+  (`validation/results_compare/compare.md`): mejor en todas las zonas,
+  sobre todo mobiliario (confianza 0,69 → 0,86), a ~3 s por foto en 2 núcleos.
+- **Cuándo se calcula:** una vez por foto, al subirla. El servidor **no la
+  guarda**: devuelve el mapa y el navegador lo conserva en memoria mientras el
+  usuario elige; al generar envía la selección como máscara. El servicio sigue
+  sin estado (escala y no retiene fotos).
+- **Por qué composición y no inpainting:** `InferenceClient` no tiene una
+  tarea de inpainting con máscara y no hay garantía de que el proveedor la
+  tenga. Se genera la imagen entera y se pega solo dentro de la máscara, con
+  el borde suavizado hacia dentro: **fuera de la zona elegida la foto queda
+  idéntica** (en la respuesta, salvo la compresión JPEG). Comprobado con el
+  modelo real sobre 6 fotos en `validation/results_server/report.md`.
+  En la fase 2, un endpoint de inpainting real puede recibir la misma máscara.
+- **Límites conocidos** (de la validación): pared/suelo/techo fiables;
+  mobiliario peor en armarios blancos sobre pared blanca; espejos y cristales
+  confunden al modelo (el espejo se excluye de las zonas). Por eso la
+  interfaz muestra la selección en verde y permite corregirla con un pincel.
+- La primera versión de la imagen Docker pesa bastante más (PyTorch +
+  modelo, ~2 GB); sigue cabiendo en un Space CPU gratuito. El modelo se
+  descarga al construir la imagen, no en la primera petición.
+
 ## Modelo: lo que hay que saber antes de desplegar
 
 - `image_to_image` solo funciona con modelos que **algún proveedor sirva para
@@ -83,6 +115,8 @@ foto ─► reduce a ≤1024 px,  ─►  valida formato/tamaño,       ─►  
 | `RATE_LIMIT_PER_HOUR` | `10` | Generaciones por IP y hora (en memoria, una sola réplica). |
 | `MAX_CONCURRENT_GENERATIONS` | `2` | Generaciones simultáneas; el resto recibe `busy`. |
 | `MAX_UPLOAD_MB` / `MAX_IMAGE_SIDE` | `10` / `1024` | Límites de subida y de resolución enviada al modelo. |
+| `SEG_MODEL` | `nvidia/segformer-b4-finetuned-ade-512-512` | Modelo de segmentación (se ejecuta en el propio servicio). |
+| `SEG_RATE_LIMIT_PER_HOUR` / `MAX_CONCURRENT_SEGMENTATIONS` | `30` / `2` | Límite propio de la detección de zonas (usa CPU del servicio, no crédito de HF). |
 
 ## Desplegar en un Hugging Face Space (recomendado para la fase 1)
 
@@ -105,7 +139,7 @@ Local:
 
 ```
 pip install -r requirements-dev.txt
-pytest -q                                   # 32 tests, sin llamar a Hugging Face
+pytest -q                                   # 57 tests, sin llamar a Hugging Face
 HF_TOKEN=hf_xxx ALLOWED_ORIGINS=http://localhost:8000 uvicorn app:app --port 7860
 ```
 
@@ -143,6 +177,9 @@ en huggingface.co/pricing antes de lanzar**, cambia a menudo):
   y por el proveedor que sirva el modelo (p. ej. fal-ai o Replicate), cada uno
   con su propia política de retención. **Revisar esas políticas antes de abrir
   la función al público** y reflejarlas en el aviso de privacidad de HomeAI.
+- **Zonas:** la foto se segmenta dentro de este servicio (no se envía a
+  ningún tercero para eso). Ni el mapa de zonas ni la máscara se guardan: el
+  mapa vuelve al navegador y la máscara solo vive durante la petición.
 - **El resultado:** solo se guarda si el usuario pulsa "Guardar en Archivos",
   y entonces solo en su navegador (IndexedDB), como el resto de documentos.
 

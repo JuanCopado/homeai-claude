@@ -1,0 +1,43 @@
+name: Validar segmentación
+# Valida la segmentación por zonas con el modelo real (SegFormer ADE20K) sobre
+# fotos de interiores y guarda los resultados (imágenes + report.md) en la
+# misma rama. Rondas 1-3: validate_segmentation.py / compare_models.py.
+# Ahora: check_server_segmentation.py (código de producción + b4). Sin secretos.
+on:
+  push:
+    branches: [claude/validacion-segmentacion]
+    paths:
+      - server/validation/*.py
+      - server/app.py
+      - server/segmentation.py
+      - server/requirements.txt
+      - server/validation/requirements.txt
+      - server/validation/fotos/**
+      - .github/workflows/validate-segmentation.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: validate-segmentation
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r server/requirements.txt requests
+      # Código de producción + SegFormer-b4 real sobre las fotos de la ronda 2.
+      # (Las rondas 2 y 3 ya están en results/ y results_compare/.)
+      - run: cd server/validation && python check_server_segmentation.py
+      - name: Guardar resultados en la rama
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/validation/results_server
+          git commit -m "Resultados de la validación de segmentación" || exit 0
+          git push

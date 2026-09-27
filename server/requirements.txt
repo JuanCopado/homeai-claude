@@ -1,5 +1,11 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
 python-multipart>=0.0.9
 huggingface_hub>=1.0,<3
 Pillow>=10.4,<13
+numpy>=1.26
+# Segmentación por zonas (SegFormer, en CPU dentro del propio servicio)
+torch
+torchvision
+transformers>=4.40

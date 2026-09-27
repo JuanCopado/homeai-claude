@@ -211,7 +211,7 @@ def test_cors_only_for_allowed_origin(api, fake):
 
 def test_oversized_body_rejected_before_parsing(api, fake, monkeypatch):
     monkeypatch.setenv("MAX_UPLOAD_MB", "1")
-    body = b"x" * (2 * 1024 * 1024)
+    body = b"x" * (4 * 1024 * 1024)
     r = api.post("/api/renovate", content=body, headers={"Content-Type": "multipart/form-data; boundary=zz", "Content-Length": str(len(body))})
     assert r.status_code == 413 and r.json()["error"] == "image_too_large"
     assert not fake.calls

@@ -1,10 +1,15 @@
 # Imagen para un Hugging Face Space (SDK "docker") o cualquier servicio de contenedores.
-# El servicio solo hace de proxy hacia la Inference API: no necesita GPU.
+# La generación va a la Inference API (sin GPU); la segmentación por zonas
+# (SegFormer-b4) corre en la CPU del propio contenedor.
 FROM python:3.11-slim
 RUN useradd -m -u 1000 app
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+ENV HF_HOME=/app/.cache/huggingface
+COPY segmentation.py .
+# Descarga el modelo de segmentación al construir, no en la primera petición.
+RUN python -c "import segmentation as s; s.load_segmenter()" && chown -R app /app/.cache
 COPY app.py .
 USER app
 ENV PORT=7860

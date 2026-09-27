@@ -14,6 +14,7 @@ resolución a lo que el modelo necesita).
 
 from __future__ import annotations
 
+import base64
 import io
 import logging
 import os
@@ -27,6 +28,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageOps, ImageStat, UnidentifiedImageError
 from starlette.formparsers import MultiPartParser
+
+import segmentation as seg
 
 log = logging.getLogger("homeai.renovation")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -83,6 +86,8 @@ def settings() -> dict:
         "guidance": env_float("HF_GUIDANCE_SCALE", 7.0),
         "rate_per_hour": env_int("RATE_LIMIT_PER_HOUR", 10),
         "max_concurrent": env_int("MAX_CONCURRENT_GENERATIONS", 2),
+        "seg_rate_per_hour": env_int("SEG_RATE_LIMIT_PER_HOUR", 30),
+        "seg_concurrent": env_int("MAX_CONCURRENT_SEGMENTATIONS", 2),
     }
 
 
@@ -100,6 +105,7 @@ _hits: dict[str, deque] = defaultdict(deque)
 _hits_lock = threading.Lock()
 _slots_lock = threading.Lock()
 _active = 0
+_seg_active = 0
 
 
 def check_rate_limit(client_id: str, per_hour: int) -> None:
@@ -128,6 +134,20 @@ def release_slot() -> None:
     global _active
     with _slots_lock:
         _active = max(0, _active - 1)
+
+
+def acquire_seg_slot(max_concurrent: int) -> None:
+    global _seg_active
+    with _slots_lock:
+        if _seg_active >= max_concurrent:
+            raise ApiError(503, "busy", "El servicio está ocupado analizando otras fotos. Inténtalo en unos segundos.", 10)
+        _seg_active += 1
+
+
+def release_seg_slot() -> None:
+    global _seg_active
+    with _slots_lock:
+        _seg_active = max(0, _seg_active - 1)
 
 
 # --- Preprocesado --------------------------------------------------------------
@@ -223,14 +243,45 @@ def map_hf_error(exc: Exception) -> ApiError:
     return ApiError(502, "upstream_error", "El servicio de IA ha fallado. Inténtalo de nuevo.")
 
 
-def generate(img: Image.Image, style: str, strength: float, cfg: dict) -> bytes:
+def build_prompt(style: str, zones: list[str]) -> str:
+    if not zones:
+        return f"{style}, {STRUCTURE_SUFFIX}"
+    target = " and ".join(seg.ZONE_PROMPT[z] for z in zones)
+    return f"{target} redesigned: {style}, {STRUCTURE_SUFFIX}"
+
+
+def parse_zones(raw: str) -> list[str]:
+    zones = [z.strip() for z in (raw or "").split(",") if z.strip()]
+    if any(z not in seg.ZONE_PROMPT for z in zones):
+        raise ApiError(400, "invalid_zones", "Zona no válida.")
+    return list(dict.fromkeys(zones))
+
+
+def read_mask(upload_bytes: bytes, size: tuple[int, int]):
+    try:
+        with Image.open(io.BytesIO(upload_bytes)) as probe:
+            fmt = probe.format
+            probe.verify()
+        mask_img = Image.open(io.BytesIO(upload_bytes))
+        mask_img.load()
+    except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError) as exc:
+        raise ApiError(400, "invalid_mask", "La selección de zonas no es válida. Vuelve a seleccionarlas.") from exc
+    if fmt != "PNG":
+        raise ApiError(400, "invalid_mask", "La selección de zonas no es válida. Vuelve a seleccionarlas.")
+    mask = seg.parse_mask(mask_img, size)
+    if not mask.any():
+        raise ApiError(400, "empty_mask", "No hay ninguna zona seleccionada. Toca una zona de la foto o elige «Toda la foto».")
+    return mask
+
+
+def generate(img: Image.Image, prompt: str, strength: float, cfg: dict) -> Image.Image:
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=92)
     client = make_client(cfg)
     try:
         result = client.image_to_image(
             buf.getvalue(),
-            prompt=f"{style}, {STRUCTURE_SUFFIX}",
+            prompt=prompt,
             negative_prompt=DEFAULT_NEGATIVE,
             num_inference_steps=cfg["steps"],
             guidance_scale=cfg["guidance"],
@@ -242,8 +293,12 @@ def generate(img: Image.Image, style: str, strength: float, cfg: dict) -> bytes:
         )
     except Exception as exc:  # noqa: BLE001 - se traduce a un error de API claro
         raise map_hf_error(exc) from exc
+    return result.convert("RGB")
+
+
+def to_jpeg(img: Image.Image) -> bytes:
     out = io.BytesIO()
-    result.convert("RGB").save(out, format="JPEG", quality=90)
+    img.save(out, format="JPEG", quality=90)
     return out.getvalue()
 
 
@@ -264,8 +319,9 @@ app.add_middleware(
 async def limit_body_size(request: Request, call_next):
     """Rechaza cuerpos grandes ANTES de que se lean y se parseen: sin esto, una
     subida de varios GB se procesaría entera antes de llegar a renovate()."""
-    if request.method == "POST" and request.url.path == "/api/renovate":
-        limit = settings()["max_upload"] + 64 * 1024  # margen para el resto del formulario
+    if request.method == "POST" and request.url.path in ("/api/renovate", "/api/segment"):
+        # margen para el resto del formulario, incluida la máscara PNG (≤1024 px, 1 bit útil)
+        limit = settings()["max_upload"] + 2 * 1024 * 1024
         length = request.headers.get("content-length")
         if length is None:
             return await api_error_handler(request, ApiError(411, "length_required", "Falta la cabecera Content-Length."))
@@ -288,19 +344,76 @@ def health():
     return {"ok": True, "configured": bool(cfg["token"]), "model": cfg["model"], "provider": cfg["provider"]}
 
 
+async def read_photo(image: UploadFile, cfg: dict) -> Image.Image:
+    data = await image.read(cfg["max_upload"] + 1)
+    if len(data) > cfg["max_upload"]:
+        raise ApiError(413, "image_too_large", f"La foto pesa demasiado (máximo {cfg['max_upload'] // (1024 * 1024)} MB).")
+    return preprocess(data, cfg["max_side"])
+
+
+@app.post("/api/segment")
+async def segment_photo(request: Request, image: UploadFile = File(...)):
+    """Detecta zonas (pared, suelo, techo, mobiliario…) en la foto.
+
+    No guarda nada: devuelve el mapa al navegador, que lo conserva mientras el
+    usuario elige zonas y lo reenvía como máscara al generar. Así la
+    segmentación se calcula una sola vez por foto y el servidor sigue sin estado.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    cfg = settings()
+    img = await read_photo(image, cfg)
+    check_rate_limit("seg:" + (request.client.host if request.client else "unknown"), cfg["seg_rate_per_hour"])
+    acquire_seg_slot(cfg["seg_concurrent"])
+    started = time.monotonic()
+    try:
+        zmap = await run_in_threadpool(seg.segment, img)
+    except ApiError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Fallo en la segmentación")
+        raise ApiError(503, "segmentation_unavailable", "No se pudieron detectar las zonas ahora mismo. Puedes transformar la foto entera.") from exc
+    finally:
+        release_seg_slot()
+        log.info("segment size=%sx%s seconds=%.1f", img.width, img.height, time.monotonic() - started)
+    buf = io.BytesIO()
+    seg.map_to_png(zmap).save(buf, format="PNG", optimize=True)
+    return JSONResponse(
+        {
+            "width": img.width,
+            "height": img.height,
+            "step": seg.MAP_STEP,
+            "zones": seg.zones_summary(zmap),
+            "map": "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode(),
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.post("/api/renovate")
-async def renovate(request: Request, image: UploadFile = File(...), style: str = Form(...), strength: float = Form(0.55)):
+async def renovate(
+    request: Request,
+    image: UploadFile = File(...),
+    style: str = Form(...),
+    strength: float = Form(0.55),
+    mask: UploadFile | None = File(None),
+    zones: str = Form(""),
+):
     cfg = settings()
     if not cfg["token"]:
         raise ApiError(503, "not_configured", "El servicio de IA no está configurado (falta HF_TOKEN en el servidor).")
     style = clean_style(style)
     strength = min(0.8, max(0.3, strength))
+    zone_list = parse_zones(zones)
 
-    data = await image.read(cfg["max_upload"] + 1)
-    if len(data) > cfg["max_upload"]:
-        raise ApiError(413, "image_too_large", f"La foto pesa demasiado (máximo {cfg['max_upload'] // (1024 * 1024)} MB).")
-    img = preprocess(data, cfg["max_side"])
-    del data
+    img = await read_photo(image, cfg)
+    mask_arr = None
+    if mask is not None:
+        mask_bytes = await mask.read(2 * 1024 * 1024 + 1)
+        if len(mask_bytes) > 2 * 1024 * 1024:
+            raise ApiError(413, "invalid_mask", "La selección de zonas es demasiado grande.")
+        mask_arr = read_mask(mask_bytes, img.size)
+    prompt = build_prompt(style, zone_list if mask_arr is not None else [])
 
     check_rate_limit(request.client.host if request.client else "unknown", cfg["rate_per_hour"])
     acquire_slot(cfg["max_concurrent"])
@@ -310,9 +423,13 @@ async def renovate(request: Request, image: UploadFile = File(...), style: str =
         # no parar el bucle de eventos mientras el modelo trabaja.
         from starlette.concurrency import run_in_threadpool
 
-        body = await run_in_threadpool(generate, img, style, strength, cfg)
+        result = await run_in_threadpool(generate, img, prompt, strength, cfg)
+        if mask_arr is not None:
+            result = seg.composite(img, result, mask_arr)
+        body = to_jpeg(result)
     finally:
         release_slot()
-        # Solo métricas, nunca la foto ni el texto del usuario.
-        log.info("renovate size=%sx%s strength=%.2f seconds=%.1f", img.width, img.height, strength, time.monotonic() - started)
+        # Solo métricas, nunca la foto, la máscara ni el texto del usuario.
+        log.info("renovate size=%sx%s strength=%.2f masked=%s seconds=%.1f", img.width, img.height, strength,
+                 mask_arr is not None, time.monotonic() - started)
     return Response(body, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
