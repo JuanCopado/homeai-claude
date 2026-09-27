@@ -3,32 +3,13 @@
   "n": 1,
   "why": "contraluz (ventanales al atardecer)",
   "title": "File:Living room in apartment of Condomínio do Edifício Zaher, Le Blond, Rio de Janeiro, Brazil.jpg",
-  "latency": {
-   "1": 45.0,
-   "2∥": 27.8
-  },
+  "latency": {},
   "error": "quota_exhausted: Se ha agotado el crédito de IA del servicio. La función vuelve a estar disponible cuando se renueve.",
   "orig_score": {
    "aesthetic": 5.469,
    "realism": 0.946,
    "score": 0.782
   },
-  "scores": [
-   {
-    "aesthetic": 5.383,
-    "realism": 0.976,
-    "score": 0.786
-   },
-   {
-    "aesthetic": 5.988,
-    "realism": 1.0,
-    "score": 0.873
-   },
-   {
-    "aesthetic": 5.265,
-    "realism": 0.984,
-    "score": 0.775
-   }
-  ]
+  "scores": []
  }
 ]
