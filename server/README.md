@@ -78,6 +78,30 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
   modelo, ~2 GB); sigue cabiendo en un Space CPU gratuito. El modelo se
   descarga al construir la imagen, no en la primera petición.
 
+## Estilo actual de la habitación: `POST /api/style`
+
+- CLIP `openai/clip-vit-large-patch14` en modo zero-shot, dentro del servicio
+  (sin crédito de HF, sin enviar la foto a otro tercero). ~1,3 s por foto en 2
+  núcleos. Se llama al subir la foto, en paralelo a la detección de zonas.
+- **Solo se afirma un estilo si el modelo está seguro:** probabilidad del
+  primero ≥ 0,5 y ventaja ≥ 0,2 sobre el segundo (`STYLE_MIN_PROB`,
+  `STYLE_MIN_MARGIN`). Tres etiquetas de "no sugerir" — habitación vacía,
+  primer plano de un objeto, exterior — ganan cuando la foto no muestra una
+  estancia con muebles. Respuesta: `{style, label, confidence, margin,
+  suggest, reason, top}`; con `suggest=false`, `style` es `null` y `reason`
+  explica por qué.
+- Validación (`validation/results_style/`): con fotos revisadas a mano,
+  large/14 acierta 6/7 (base/32, el modelo propuesto inicialmente, 3–4/8);
+  con el umbral, lo que se sugiere acierta 6/6, y en 10/10 fotos que no son un
+  estilo (vacías, exteriores, detalles) no se sugiere nada. **Sin validar con
+  fotos buenas: escandinavo, bohemio y mediterráneo** (Wikimedia y Openverse no
+  tenían ejemplos fiables).
+- La interfaz lo muestra como "Parece: Rústico ▾" sobre la foto (editable) y
+  marca 2–3 estilos de destino como sugeridos; nunca selecciona nada solo.
+- La imagen Docker crece: CLIP large ocupa ~1,7 GB (total ~4 GB). Si pesa
+  demasiado, `STYLE_MODEL=openai/clip-vit-base-patch32` reduce ~1,1 GB a
+  costa de precisión (ver validación).
+
 ## Modelo: lo que hay que saber antes de desplegar
 
 - `image_to_image` solo funciona con modelos que **algún proveedor sirva para
@@ -116,7 +140,10 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
 | `MAX_CONCURRENT_GENERATIONS` | `2` | Generaciones simultáneas; el resto recibe `busy`. |
 | `MAX_UPLOAD_MB` / `MAX_IMAGE_SIDE` | `10` / `1024` | Límites de subida y de resolución enviada al modelo. |
 | `SEG_MODEL` | `nvidia/segformer-b4-finetuned-ade-512-512` | Modelo de segmentación (se ejecuta en el propio servicio). |
-| `SEG_RATE_LIMIT_PER_HOUR` / `MAX_CONCURRENT_SEGMENTATIONS` | `30` / `2` | Límite propio de la detección de zonas (usa CPU del servicio, no crédito de HF). |
+| `SEG_RATE_LIMIT_PER_HOUR` / `MAX_CONCURRENT_SEGMENTATIONS` | `30` / `2` | Límite propio de la detección de zonas (usa CPU del servicio, no crédito de HF). La concurrencia se comparte con la detección de estilo. |
+| `STYLE_MODEL` | `openai/clip-vit-large-patch14` | Modelo de detección de estilo. |
+| `STYLE_MIN_PROB` / `STYLE_MIN_MARGIN` | `0.5` / `0.2` | Umbral para afirmar un estilo (validado). |
+| `STYLE_RATE_LIMIT_PER_HOUR` | `30` | Límite propio de la detección de estilo. |
 
 ## Desplegar en un Hugging Face Space (recomendado para la fase 1)
 
@@ -139,7 +166,7 @@ Local:
 
 ```
 pip install -r requirements-dev.txt
-pytest -q                                   # 57 tests, sin llamar a Hugging Face
+pytest -q                                   # 70 tests, sin llamar a Hugging Face
 HF_TOKEN=hf_xxx ALLOWED_ORIGINS=http://localhost:8000 uvicorn app:app --port 7860
 ```
 

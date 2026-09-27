@@ -1,0 +1,40 @@
+name: Validar estilo
+# Valida la detección de estilo de interior (CLIP zero-shot) con fotos reales
+# y guarda los resultados en la rama. No usa secretos.
+on:
+  push:
+    branches: [claude/estilo-interior]
+    paths:
+      - server/validation/validate_style.py
+      - server/validation/check_server_style.py
+      - server/style.py
+      - server/app.py
+      - .github/workflows/validate-style.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: validate-style
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r server/requirements.txt requests
+      # Código de producción (server/style.py + /api/style) con CLIP real sobre
+      # las fotos ya revisadas. La validación de modelos (validate_style.py)
+      # ya está en results_style/.
+      - run: cd server/validation && python check_server_style.py
+      - name: Guardar resultados en la rama
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/validation/results_style_server
+          git commit -m "Resultados de la comprobación de estilo en el servidor" || exit 0
+          git push

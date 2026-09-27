@@ -58,14 +58,60 @@
 
 ## Pendiente de la visualización con IA
 
-- **En cola (pedidas por Juan el 2026-09-27), en este orden:**
-  1. Detección automática de estilo de interior (CLIP zero-shot, con nivel de
-     confianza para no sugerir si duda; chip corregible y sugerencias de
-     estilos de destino). Primer paso: validar con 10–15 fotos antes de la
-     interfaz — en marcha en la rama `claude/estilo-interior`.
-  2. Filtro de calidad: varias variantes por petición y puntuación estética
-     (LAION aesthetic o CLIP zero-shot), empezando por medir 2 variantes
-     (tiempo y calidad) antes de subir a 3.
+- **Validación de la detección de estilo (2026-09-27, rama `claude/estilo-interior`,
+  `server/validation/validate_style.py` → `results_style/`).** CLIP zero-shot,
+  base/32 frente a large/14, 8 estilos. Dos rondas en GitHub Actions:
+  - Muchas "etiquetas" de la búsqueda en Wikimedia eran falsas (la casa Futuro
+    como "escandinavo", el Bohemian Hall checo como "bohemio", exteriores
+    como "rústico"); se descartaron al revisar las fotos a mano.
+  - Con 8 fotos de etiqueta fiable (rústico, industrial, minimalista,
+    moderno): **large/14 acierta 7/8, base/32 3–4/8.** Tiempo en CPU:
+    1,2 s frente a 0,2 s por foto.
+  - Umbral "top-1 ≥ 0,5 y margen ≥ 0,2" con large/14: se sugiere en 7/8 y
+    las 7 aciertan; el fallo (primer plano de una lámpara, 0,45 / +0,05)
+    queda sin sugerencia.
+  - Habitación vacía: sin etiquetas "sumidero" salía "minimalista" (0,97);
+    con "habitación vacía" y "primer plano de objeto" como etiquetas de
+    no-sugerir, 2/2 vacías quedan sin sugerencia. Falta una tercera para
+    exteriores.
+  - **Sin validar por falta de fotos buenas en Wikimedia:** escandinavo,
+    bohemio, clásico y mediterráneo.
+  - **Ronda 3 (Openverse para los estilos sin cubrir) y conclusión global:**
+    Juan pidió buscar en Pinterest; se descartó (derechos de autor de terceros,
+    condiciones de uso, y las fotos se guardan en el repo) y se usó Openverse
+    (licencias libres). Aun así, casi todo lo que devolvió para escandinavo,
+    bohemio y mediterráneo no eran interiores de ese estilo (pabellones que
+    parecen generados por IA, portadas de discos, relieves). Contando solo
+    fotos revisadas a mano con etiqueta fiable, **large/14 acierta 6/7**
+    (rústico 2/2, moderno 2/2, minimalista 1/2, clásico 1/1) y, con el umbral
+    p ≥ 0,5 y margen ≥ 0,2, **sugiere en 6 y acierta las 6**. Las etiquetas de
+    no-sugerir funcionan en **10/10** casos que no son un estilo (6 exteriores,
+    2 habitaciones vacías, portadas de discos, relieve de cerca).
+    **Siguen sin validar con fotos buenas: escandinavo, bohemio y
+    mediterráneo** (industrial solo en ronda 1, cuando las "industriales"
+    resultaron ser fachadas de lofts).
+  - **Integrada (2026-09-27):** `server/style.py` + `POST /api/style` (CLIP
+    large/14 en el servicio, umbral 0,5 / 0,2, etiquetas de no-sugerir vacía /
+    objeto / exterior); en la interfaz, chip "Parece: X ▾" editable sobre la
+    foto, nota "detectado automáticamente", y 2–3 estilos de destino marcados
+    como "sugerido" (nunca seleccionados solos); si no hay estilo claro, se
+    explica por qué y se puede indicar a mano; sin consentimiento no se envía
+    nada. Verificado: 13 tests nuevos (70 en total); navegador → servidor real
+    (CLIP simulado de forma determinista) a 390 y 1440 px: estilo claro,
+    corrección manual, "sin estilo claro", habitación vacía, foto dudosa,
+    servicio sin `/api/style` (404), generación con un estilo sugerido, sin
+    errores de consola; regresión de zonas, foto entera y 7 vistas. Código de
+    producción con CLIP real en GitHub Actions: `validation/results_style_server/`.
+    Resultado con CLIP real (`validation/results_style_server/report.md`):
+    **12/12 correctos, 0 sugerencias incorrectas** (5 estilos acertados; 4
+    exteriores, 2 vacías y 1 dudosa sin sugerencia y con su motivo).
+  - **En cola, en este orden:** (1) filtro de calidad con varias variantes
+    (medir primero con 2); (2) investigación de reconstrucción 3D de
+    habitaciones a partir de fotos (una foto vs. varias/vídeo; licencia,
+    cómputo, formato y visor web, madurez, especialización en interiores;
+    probar 2-3 con fotos reales; tabla y recomendación para la Fase 0 del
+    recorrido virtual). Aviso: este entorno no tiene GPU; las pruebas irían
+    por GitHub Actions (CPU) o Spaces públicos.
 
 - **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
   (`server/validation/`, workflow `validate-segmentation.yml`, rama

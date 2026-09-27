@@ -1,0 +1,905 @@
+[
+ {
+  "n": 1,
+  "title": "File:Modern rustic interior of a spacious bar featuring wooden accents and stylish seating in a lively social setting.jpg",
+  "expected": "rustico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "industrial",
+      0.463
+     ],
+     [
+      "rustico",
+      0.386
+     ],
+     [
+      "moderno",
+      0.141
+     ]
+    ],
+    "margin": 0.077,
+    "seconds": 0.27
+   },
+   "large14": {
+    "top3": [
+     [
+      "rustico",
+      0.945
+     ],
+     [
+      "industrial",
+      0.03
+     ],
+     [
+      "moderno",
+      0.017
+     ]
+    ],
+    "margin": 0.915,
+    "seconds": 1.31
+   }
+  }
+ },
+ {
+  "n": 2,
+  "title": "File:Old Serbian traditional shirt hanging on a wooden post in a rustic interior space with woven textiles in Bistrica Serbia.jpg",
+  "expected": "rustico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "rustico",
+      0.729
+     ],
+     [
+      "_objeto",
+      0.104
+     ],
+     [
+      "mediterraneo",
+      0.071
+     ]
+    ],
+    "margin": 0.625,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "rustico",
+      0.6
+     ],
+     [
+      "minimalista",
+      0.239
+     ],
+     [
+      "_vacia",
+      0.066
+     ]
+    ],
+    "margin": 0.361,
+    "seconds": 1.3
+   }
+  }
+ },
+ {
+  "n": 3,
+  "title": "File:Summer Kitchen, White Hall, Richmond, KY.jpg",
+  "expected": "rustico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.993
+     ],
+     [
+      "rustico",
+      0.003
+     ],
+     [
+      "moderno",
+      0.002
+     ]
+    ],
+    "margin": 0.991,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.606
+     ],
+     [
+      "_vacia",
+      0.19
+     ],
+     [
+      "rustico",
+      0.145
+     ]
+    ],
+    "margin": 0.415,
+    "seconds": 1.3
+   }
+  }
+ },
+ {
+  "n": 4,
+  "title": "File:Kitchen Wing, White Hall, Richmond, KY.jpg",
+  "expected": "rustico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.995
+     ],
+     [
+      "moderno",
+      0.002
+     ],
+     [
+      "_vacia",
+      0.001
+     ]
+    ],
+    "margin": 0.993,
+    "seconds": 0.21
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.944
+     ],
+     [
+      "clasico",
+      0.044
+     ],
+     [
+      "_vacia",
+      0.005
+     ]
+    ],
+    "margin": 0.899,
+    "seconds": 1.33
+   }
+  }
+ },
+ {
+  "n": 5,
+  "title": "File:Milwaukee August 2024 057 (Square D Company-Industrial Controller Division--Junior House Lofts).jpg",
+  "expected": "industrial",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.865
+     ],
+     [
+      "moderno",
+      0.116
+     ],
+     [
+      "industrial",
+      0.018
+     ]
+    ],
+    "margin": 0.748,
+    "seconds": 0.29
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.893
+     ],
+     [
+      "industrial",
+      0.093
+     ],
+     [
+      "_vacia",
+      0.006
+     ]
+    ],
+    "margin": 0.8,
+    "seconds": 1.29
+   }
+  }
+ },
+ {
+  "n": 6,
+  "title": "File:Kerker Lofts.JPG",
+  "expected": "industrial",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.604
+     ],
+     [
+      "industrial",
+      0.385
+     ],
+     [
+      "moderno",
+      0.011
+     ]
+    ],
+    "margin": 0.218,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.692
+     ],
+     [
+      "industrial",
+      0.301
+     ],
+     [
+      "moderno",
+      0.005
+     ]
+    ],
+    "margin": 0.391,
+    "seconds": 1.32
+   }
+  }
+ },
+ {
+  "n": 7,
+  "title": "File:Modern pendant lights illuminate minimalist interior design in stylish dining area during evening hours.jpg",
+  "expected": "minimalista",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "moderno",
+      0.496
+     ],
+     [
+      "escandinavo",
+      0.349
+     ],
+     [
+      "minimalista",
+      0.143
+     ]
+    ],
+    "margin": 0.146,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.666
+     ],
+     [
+      "moderno",
+      0.31
+     ],
+     [
+      "escandinavo",
+      0.019
+     ]
+    ],
+    "margin": 0.356,
+    "seconds": 1.3
+   }
+  }
+ },
+ {
+  "n": 8,
+  "title": "File:Minimalist chandelier in the Mița the Cyclist House, Bucharest.jpg",
+  "expected": "minimalista",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.482
+     ],
+     [
+      "moderno",
+      0.271
+     ],
+     [
+      "clasico",
+      0.096
+     ]
+    ],
+    "margin": 0.211,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.453
+     ],
+     [
+      "minimalista",
+      0.408
+     ],
+     [
+      "_objeto",
+      0.08
+     ]
+    ],
+    "margin": 0.045,
+    "seconds": 1.34
+   }
+  }
+ },
+ {
+  "n": 9,
+  "title": "File:Elegant dining area in a modern apartment with wooden accents and stylish decor.jpg",
+  "expected": "moderno",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "escandinavo",
+      0.827
+     ],
+     [
+      "moderno",
+      0.1
+     ],
+     [
+      "rustico",
+      0.038
+     ]
+    ],
+    "margin": 0.727,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.574
+     ],
+     [
+      "rustico",
+      0.155
+     ],
+     [
+      "minimalista",
+      0.145
+     ]
+    ],
+    "margin": 0.419,
+    "seconds": 1.51
+   }
+  }
+ },
+ {
+  "n": 10,
+  "title": "File:Modern living room with stylish furniture and a view of the outdoors in a cozy apartment setting.jpg",
+  "expected": "moderno",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.576
+     ],
+     [
+      "moderno",
+      0.29
+     ],
+     [
+      "_vacia",
+      0.078
+     ]
+    ],
+    "margin": 0.287,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "moderno",
+      0.681
+     ],
+     [
+      "minimalista",
+      0.192
+     ],
+     [
+      "bohemio",
+      0.058
+     ]
+    ],
+    "margin": 0.489,
+    "seconds": 1.33
+   }
+  }
+ },
+ {
+  "n": 11,
+  "title": "File:Empty apartment room with extension cord.jpg",
+  "expected": "_vacia",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_vacia",
+      0.893
+     ],
+     [
+      "minimalista",
+      0.079
+     ],
+     [
+      "escandinavo",
+      0.02
+     ]
+    ],
+    "margin": 0.814,
+    "seconds": 0.21
+   },
+   "large14": {
+    "top3": [
+     [
+      "_vacia",
+      0.943
+     ],
+     [
+      "minimalista",
+      0.055
+     ],
+     [
+      "moderno",
+      0.001
+     ]
+    ],
+    "margin": 0.888,
+    "seconds": 1.8
+   }
+  }
+ },
+ {
+  "n": 12,
+  "title": "File:Empty room in apartment.jpg",
+  "expected": "_vacia",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_vacia",
+      0.995
+     ],
+     [
+      "moderno",
+      0.002
+     ],
+     [
+      "minimalista",
+      0.002
+     ]
+    ],
+    "margin": 0.993,
+    "seconds": 0.31
+   },
+   "large14": {
+    "top3": [
+     [
+      "_vacia",
+      0.996
+     ],
+     [
+      "minimalista",
+      0.002
+     ],
+     [
+      "moderno",
+      0.001
+     ]
+    ],
+    "margin": 0.994,
+    "seconds": 1.37
+   }
+  }
+ },
+ {
+  "n": 13,
+  "title": "File:Restaurant room of Amantaka luxury Resort & Hotel in Luang Prabang Laos.jpg",
+  "expected": "?",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "mediterraneo",
+      0.55
+     ],
+     [
+      "moderno",
+      0.208
+     ],
+     [
+      "clasico",
+      0.154
+     ]
+    ],
+    "margin": 0.342,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.66
+     ],
+     [
+      "minimalista",
+      0.098
+     ],
+     [
+      "mediterraneo",
+      0.086
+     ]
+    ],
+    "margin": 0.562,
+    "seconds": 1.46
+   }
+  }
+ },
+ {
+  "n": 14,
+  "title": "File:Lobby lounge of Amantaka Suite Amantaka luxury Resort & Hotel Luang Prabang Laos.jpg",
+  "expected": "?",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "mediterraneo",
+      0.722
+     ],
+     [
+      "clasico",
+      0.15
+     ],
+     [
+      "moderno",
+      0.056
+     ]
+    ],
+    "margin": 0.572,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.944
+     ],
+     [
+      "minimalista",
+      0.029
+     ],
+     [
+      "moderno",
+      0.018
+     ]
+    ],
+    "margin": 0.916,
+    "seconds": 1.37
+   }
+  }
+ },
+ {
+  "n": 15,
+  "title": "Box Living - Melancholy and Light on the Jutland Coast - 20",
+  "expected": "escandinavo",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "minimalista",
+      0.506
+     ],
+     [
+      "_vacia",
+      0.424
+     ],
+     [
+      "moderno",
+      0.034
+     ]
+    ],
+    "margin": 0.082,
+    "seconds": 0.21
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.771
+     ],
+     [
+      "moderno",
+      0.138
+     ],
+     [
+      "_vacia",
+      0.09
+     ]
+    ],
+    "margin": 0.634,
+    "seconds": 1.33
+   }
+  }
+ },
+ {
+  "n": 16,
+  "title": "Box Living - Melancholy and Light on the Jutland Coast - 19",
+  "expected": "escandinavo",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_vacia",
+      0.651
+     ],
+     [
+      "minimalista",
+      0.283
+     ],
+     [
+      "moderno",
+      0.052
+     ]
+    ],
+    "margin": 0.368,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "minimalista",
+      0.361
+     ],
+     [
+      "_vacia",
+      0.337
+     ],
+     [
+      "moderno",
+      0.301
+     ]
+    ],
+    "margin": 0.024,
+    "seconds": 1.33
+   }
+  }
+ },
+ {
+  "n": 17,
+  "title": "London - Wigan - London, 17 & 18-07-21",
+  "expected": "bohemio",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_objeto",
+      0.885
+     ],
+     [
+      "_vacia",
+      0.064
+     ],
+     [
+      "moderno",
+      0.025
+     ]
+    ],
+    "margin": 0.821,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "_vacia",
+      0.685
+     ],
+     [
+      "_objeto",
+      0.174
+     ],
+     [
+      "moderno",
+      0.112
+     ]
+    ],
+    "margin": 0.512,
+    "seconds": 1.34
+   }
+  }
+ },
+ {
+  "n": 18,
+  "title": "Maine-00405 - The Parlor",
+  "expected": "clasico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "clasico",
+      0.993
+     ],
+     [
+      "mediterraneo",
+      0.003
+     ],
+     [
+      "moderno",
+      0.001
+     ]
+    ],
+    "margin": 0.99,
+    "seconds": 0.2
+   },
+   "large14": {
+    "top3": [
+     [
+      "clasico",
+      0.988
+     ],
+     [
+      "_objeto",
+      0.009
+     ],
+     [
+      "moderno",
+      0.002
+     ]
+    ],
+    "margin": 0.98,
+    "seconds": 1.34
+   }
+  }
+ },
+ {
+  "n": 19,
+  "title": "Maine-00406 - Parlor Fireplace Detail",
+  "expected": "clasico",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_objeto",
+      0.737
+     ],
+     [
+      "clasico",
+      0.251
+     ],
+     [
+      "mediterraneo",
+      0.007
+     ]
+    ],
+    "margin": 0.486,
+    "seconds": 0.31
+   },
+   "large14": {
+    "top3": [
+     [
+      "_objeto",
+      0.99
+     ],
+     [
+      "clasico",
+      0.009
+     ],
+     [
+      "minimalista",
+      0.0
+     ]
+    ],
+    "margin": 0.981,
+    "seconds": 1.36
+   }
+  }
+ },
+ {
+  "n": 20,
+  "title": "The Crescent, Buxton",
+  "expected": "_exterior",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.994
+     ],
+     [
+      "_vacia",
+      0.005
+     ],
+     [
+      "_objeto",
+      0.001
+     ]
+    ],
+    "margin": 0.989,
+    "seconds": 0.37
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.62
+     ],
+     [
+      "_vacia",
+      0.377
+     ],
+     [
+      "moderno",
+      0.002
+     ]
+    ],
+    "margin": 0.243,
+    "seconds": 1.36
+   }
+  }
+ },
+ {
+  "n": 21,
+  "title": "Marcel Janco - Solly Gold building 1934, Bucharest",
+  "expected": "_exterior",
+  "models": {
+   "base32": {
+    "top3": [
+     [
+      "_exterior",
+      0.973
+     ],
+     [
+      "moderno",
+      0.011
+     ],
+     [
+      "_vacia",
+      0.009
+     ]
+    ],
+    "margin": 0.962,
+    "seconds": 0.4
+   },
+   "large14": {
+    "top3": [
+     [
+      "_exterior",
+      0.995
+     ],
+     [
+      "_vacia",
+      0.003
+     ],
+     [
+      "moderno",
+      0.001
+     ]
+    ],
+    "margin": 0.992,
+    "seconds": 1.4
+   }
+  }
+ }
+]

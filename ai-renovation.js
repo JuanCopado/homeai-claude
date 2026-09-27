@@ -18,6 +18,12 @@
    y al generar envía la selección como máscara PNG. El servidor pega el
    resultado solo dentro de ella. Nada de esto se guarda en ningún servidor.
 
+   Estilo: con la misma foto se pide /api/style (CLIP en el servidor). Si el
+   modelo está seguro, se muestra "Parece: Rústico" sobre la foto (editable)
+   y se marcan como sugeridos 2-3 estilos de destino coherentes; nunca se
+   selecciona ninguno solo. Si duda, o la foto está vacía/es un exterior, no
+   se afirma ningún estilo.
+
    La URL del servicio se configura en index.html
    (<meta name="homeai-renovation-endpoint">). Vacía = función desactivada.
    Para pruebas locales se puede sobrescribir con
@@ -37,6 +43,18 @@ const STYLES=[
 
 let photoBlob=null,photoAspect=4/3,photoUrl=null,resultBlob=null,resultUrl=null,controller=null,timer=null;
 const ZONE_NAMES={pared:'Pared',suelo:'Suelo',techo:'Techo',mobiliario:'Mobiliario'};
+// Estilo actual detectado -> nombre, adjetivo, y estilos de destino (etiquetas de STYLES) que suelen encajar.
+const CURRENT_STYLES={
+  moderno:['Moderno','moderna',['Nórdico','Japandi','Industrial']],
+  rustico:['Rústico','rústica',['Nórdico','Japandi','Mediterráneo']],
+  minimalista:['Minimalista','minimalista',['Japandi','Nórdico']],
+  industrial:['Industrial','industrial',['Minimalista','Nórdico','Japandi']],
+  escandinavo:['Escandinavo','escandinava',['Japandi','Minimalista','Mediterráneo']],
+  clasico:['Clásico','clásica',['Minimalista','Japandi','Nórdico']],
+  bohemio:['Bohemio','bohemia',['Nórdico','Mediterráneo','Japandi']],
+  mediterraneo:['Mediterráneo','mediterránea',['Nórdico','Japandi','Minimalista']],
+};
+let current=null,stylePending=false,styleToken=0; // current = {style|null, source:'auto'|'user'|'none', reason}
 // Estado de zonas de la foto actual: mapa del servidor + selección + ajustes a pincel.
 let seg=null,segPending=false,segToken=0,mode='zones',tool='tap',brushSize=30,basePixels=null,drawQueued=false,painting=false,lastPoint=null;
 
@@ -62,7 +80,10 @@ function injectUI(){
     <label class="btn btn-light ai-reno-upload" for="aiRenoFile">Elegir foto</label>
     <input type="file" id="aiRenoFile" accept="image/jpeg,image/png,image/webp" hidden>
     <span class="ai-reno-hint" id="aiRenoFileInfo">JPG, PNG o WebP. Mejor con buena luz y la estancia entera a la vista.</span>
-    <img id="aiRenoThumb" class="ai-reno-thumb" alt="Foto elegida" hidden>
+    <div class="ai-reno-thumb-wrap"><img id="aiRenoThumb" class="ai-reno-thumb" alt="Foto elegida" hidden>
+      <label class="ai-reno-style-tag" id="aiRenoStyleTag" hidden><span id="aiRenoStyleTagText">Detectando estilo…</span>
+        <select id="aiRenoCurrent" aria-label="Estilo actual de la habitación (detectado automáticamente, puedes cambiarlo)"><option value="">—</option>${Object.entries(CURRENT_STYLES).map(([k,[n]])=>`<option value="${k}">${esc(n)}</option>`).join('')}<option value="none">Sin estilo claro</option></select></label></div>
+    <small class="ai-reno-style-note" id="aiRenoStyleNote" hidden></small>
   </div></div>
   <label class="ai-reno-consent"><input type="checkbox" id="aiRenoConsent"> <span>Entiendo que, para detectar zonas y generar la imagen, la foto (reducida y sin datos de ubicación) se envía al servicio de IA de HomeAI y a Hugging Face. No se guarda en ningún servidor.</span></label>
   <div class="ai-reno-step"><span class="ai-reno-num">2</span><div class="ai-reno-step-body">
@@ -85,6 +106,7 @@ function injectUI(){
     <span class="ai-reno-hint" id="aiRenoModeHint">Elige una foto y marca la casilla de arriba para detectar las zonas.</span>
   </div></div>
   <div class="ai-reno-step"><span class="ai-reno-num">3</span><div class="ai-reno-step-body">
+    <p class="ai-reno-suggest" id="aiRenoSuggest" hidden></p>
     <div class="ai-reno-chips" role="group" aria-label="Estilos rápidos">${chips}</div>
     <textarea id="aiRenoStyle" class="ai-orch-input" rows="2" maxlength="300" placeholder="O descríbelo tú: p. ej. salón nórdico, suelo de roble, sofá gris claro, mucha luz"></textarea>
     <label class="ai-reno-range">Cambio <span>Conservador</span><input type="range" id="aiRenoStrength" min="30" max="80" step="5" value="55" aria-label="Intensidad del cambio"><span>Creativo</span></label>
@@ -112,7 +134,8 @@ function injectUI(){
   $('#aiRenoSave').onclick=save;
   $('#aiRenoRetry').onclick=()=>{hideResult();$('#aiRenoStyle').focus()};
   $('#aiRenoDiscard').onclick=()=>{hideResult();status('Visualización descartada.')};
-  $('#aiRenoConsent').onchange=()=>{maybeSegment();updateZonesUI()};
+  $('#aiRenoConsent').onchange=()=>{maybeSegment();maybeDetectStyle();updateZonesUI()};
+  $('#aiRenoCurrent').onchange=e=>{const v=e.target.value;current={style:v&&v!=='none'?v:null,source:'user',reason:null};renderStyle()};
   card.querySelectorAll('input[name="aiRenoMode"]').forEach(r=>r.onchange=()=>{mode=r.value;maybeSegment();updateZonesUI()});
   card.querySelectorAll('[data-reno-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.renoTool));
   $('#aiRenoBrush').oninput=e=>{brushSize=Number(e.target.value)};
@@ -173,7 +196,54 @@ async function pickPhoto(file){
   // Foto nueva: el mapa de zonas anterior deja de valer (y se descarta de memoria).
   seg=null;basePixels=null;segToken++;segPending=false;
   $('#aiRenoZoneChips').innerHTML='';delete $('#aiRenoModeHint').dataset.error;
-  maybeSegment();updateZonesUI();
+  current=null;styleToken++;stylePending=false;
+  maybeSegment();maybeDetectStyle();updateZonesUI();renderStyle();
+}
+
+/* ---------- Estilo actual ---------- */
+
+async function maybeDetectStyle(){
+  const url=endpoint();
+  if(!url||!photoBlob||current||stylePending||!$('#aiRenoConsent').checked)return;
+  const token=++styleToken;stylePending=true;renderStyle();
+  const form=new FormData();form.append('image',photoBlob,'estancia.jpg');
+  try{
+    const res=await fetch(url+'/api/style',{method:'POST',body:form});
+    if(!res.ok)throw new Error(String(res.status));
+    const data=await res.json();
+    if(token!==styleToken)return;
+    current=data.suggest&&CURRENT_STYLES[data.style]?{style:data.style,source:'auto',reason:null}:{style:null,source:'none',reason:data.reason||null};
+  }catch{
+    // Sin detección (servicio antiguo, saturado…): no se afirma nada, pero el
+    // usuario puede indicar el estilo a mano en el mismo selector.
+    if(token!==styleToken)return;
+    current={style:null,source:'none',reason:null};
+  }finally{if(token===styleToken){stylePending=false;renderStyle()}}
+}
+
+function renderStyle(){
+  const tag=$('#aiRenoStyleTag'),text=$('#aiRenoStyleTagText'),sel=$('#aiRenoCurrent'),note=$('#aiRenoStyleNote');
+  tag.hidden=!photoBlob||(!current&&!stylePending);
+  sel.hidden=stylePending;
+  if(stylePending){text.textContent='Detectando estilo…';note.hidden=true}
+  else if(current){
+    sel.value=current.style||(current.source==='user'?'none':'');
+    text.textContent=current.style?(current.source==='auto'?'Parece:':'Estilo actual:'):'Estilo actual:';
+    note.hidden=!(current.source!=='user');
+    note.textContent=current.source==='auto'?'Detectado automáticamente. Si no es así, cámbialo.':(current.reason?current.reason+' ':'')+'Puedes indicarlo tú si quieres sugerencias.';
+  }
+  renderSuggestions();
+}
+
+function renderSuggestions(){
+  const box=$('#aiRenoSuggest'),info=current&&current.style&&CURRENT_STYLES[current.style];
+  card().querySelectorAll('[data-reno-style]').forEach(b=>{
+    const on=Boolean(info)&&info[2].includes(STYLES[Number(b.dataset.renoStyle)][0]);
+    b.classList.toggle('is-suggested',on);
+    b.title=on?'Sugerido para tu estancia':'';
+  });
+  box.hidden=!info;
+  if(info)box.textContent=`Para una estancia ${info[1]} suelen encajar: ${info[2].join(', ')}. Son solo sugerencias; elige el que quieras.`;
 }
 
 /* ---------- Zonas ---------- */
