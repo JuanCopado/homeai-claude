@@ -31,18 +31,28 @@ STYLES = {
     "clasico": ("Clásico", "a classic traditional interior with ornate furniture and moldings"),
     "bohemio": ("Bohemio", "a bohemian interior with plants, rugs and colorful patterns"),
     "mediterraneo": ("Mediterráneo", "a mediterranean interior with whitewashed walls and terracotta"),
+    # Etiquetas "sumidero": si ganan, no se sugiere ningún estilo. Sin ellas,
+    # CLIP llamaba "minimalista" (0,97) a una habitación vacía.
+    "_vacia": ("(vacía)", "an empty unfurnished room with bare walls"),
+    "_objeto": ("(objeto)", "a close-up photo of a single object or piece of furniture"),
 }
+SINKS = {"_vacia", "_objeto"}
 TEMPLATE = "a photo of {}"
 # Búsqueda -> estilo esperado ("?" = caso difícil sin estilo claro)
+# (La ronda 1 buscaba "scandinavian interior" y "bohemian interior": trajo la
+# casa Futuro finlandesa y el Bohemian Hall checo. Búsquedas más concretas.)
 SEARCHES = [
     ("filetype:bitmap rustic interior wooden beams", "rustico"),
-    ("filetype:bitmap scandinavian interior design", "escandinavo"),
+    ("filetype:bitmap rustic farmhouse kitchen", "rustico"),
+    ("filetype:bitmap scandinavian style living room white wood", "escandinavo"),
+    ("filetype:bitmap nordic style bedroom", "escandinavo"),
     ("filetype:bitmap industrial loft apartment", "industrial"),
     ("filetype:bitmap minimalist interior", "minimalista"),
-    ("filetype:bitmap bohemian interior", "bohemio"),
+    ("filetype:bitmap boho style room plants rug", "bohemio"),
     ("filetype:bitmap classic interior salon chandelier", "clasico"),
     ("filetype:bitmap modern apartment interior", "moderno"),
-    ("filetype:bitmap empty apartment room", "?"),
+    ("filetype:bitmap mediterranean house interior whitewashed", "mediterraneo"),
+    ("filetype:bitmap empty apartment room", "_vacia"),
     ("filetype:bitmap dark room interior night", "?"),
 ]
 OUT = v.HERE / "results_style"
@@ -100,13 +110,19 @@ def main() -> int:
         for name in MODELS:
             probs, dt = results[name][n - 1]
             order = np.argsort(-probs)
-            top, second = keys[order[0]], keys[order[1]]
+            top = keys[order[0]]
             margin = float(probs[order[0]] - probs[order[1]])
-            ok = "✅" if top == ph["expected"] else ("·" if ph["expected"] == "?" else "❌")
+            if ph["expected"] == "?":
+                ok = "·"
+            elif ph["expected"] in SINKS:
+                ok = "✅" if top in SINKS else "❌"  # lo correcto es NO sugerir
+            else:
+                ok = "✅" if top == ph["expected"] else "❌"
             cells.append(f"{ok} {STYLES[top][0]} ({probs[order[0]]:.2f}) · +{margin:.2f}")
             entry["models"][name] = {"top3": [[keys[i], round(float(probs[i]), 3)] for i in order[:3]], "margin": round(margin, 3), "seconds": round(dt, 2)}
         summary.append(entry)
-        lines.append(f"| {n} | {STYLES[ph['expected']][0] if ph['expected'] != '?' else '?'} | " + " | ".join(cells) + " |")
+        exp = "?" if ph["expected"] == "?" else STYLES[ph["expected"]][0]
+        lines.append(f"| {n} | {exp} | " + " | ".join(cells) + " |")
         img = ImageOps.exif_transpose(ph["image"]).convert("RGB")
         img.thumbnail((640, 640))
         canvas = Image.new("RGB", (img.width, img.height + 16 * (1 + 3 * len(MODELS))), "white")
@@ -121,17 +137,20 @@ def main() -> int:
         canvas.save(OUT / f"{n:02d}.jpg", quality=85)
     # Aciertos y calibración: ¿qué umbral de confianza separa aciertos de fallos?
     lines += ["", "## Resumen", "", "| Modelo | Aciertos (fotos con estilo esperado) | Tiempo medio/foto |", "|---|---|---|"]
-    labelled = [s for s in summary if s["expected"] != "?"]
+    labelled = [s for s in summary if s["expected"] not in ("?",) and s["expected"] not in SINKS]
+    sinks = [s for s in summary if s["expected"] in SINKS]
     for name in MODELS:
         hits = sum(s["models"][name]["top3"][0][0] == s["expected"] for s in labelled)
         t = np.mean([results[name][i][1] for i in range(len(photos))])
-        lines.append(f"| {name} | {hits}/{len(labelled)} | {t:.2f} s |")
+        blocked = sum(s["models"][name]["top3"][0][0] in SINKS for s in sinks)
+        lines.append(f"| {name} | {hits}/{len(labelled)} (vacías sin sugerencia: {blocked}/{len(sinks)}) | {t:.2f} s |")
     lines += ["", "## Umbral de confianza (top-1 ≥ p y margen ≥ m)", "",
               "| Modelo | p | m | Se mostraría en | Aciertos entre las mostradas |", "|---|---|---|---|---|"]
     for name in MODELS:
         for p in (0.3, 0.4, 0.5, 0.6):
             for m in (0.1, 0.2):
-                shown = [s for s in labelled if s["models"][name]["top3"][0][1] >= p and s["models"][name]["margin"] >= m]
+                shown = [s for s in labelled if s["models"][name]["top3"][0][0] not in SINKS
+                         and s["models"][name]["top3"][0][1] >= p and s["models"][name]["margin"] >= m]
                 hits = sum(s["models"][name]["top3"][0][0] == s["expected"] for s in shown)
                 lines.append(f"| {name} | {p} | {m} | {len(shown)}/{len(labelled)} | {hits}/{len(shown) if shown else 0} |")
     lines += ["", *[f"![{s['n']:02d}]({s['n']:02d}.jpg)" for s in summary], "", "## Atribución", "",
