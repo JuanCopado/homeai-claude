@@ -77,7 +77,14 @@ def main() -> int:
         sc = quality.score(tiles[i], tiles[0])
         lines.append(f"| v{i} | {eye[i]} | {sc['score']} | {sc['change']} |")
     same = quality.score(tiles[0], tiles[0])["change"]
-    lines += ["", f"Referencia: original contra sí mismo, change = {same}."]
+    lines += ["", f"Referencia: original contra sí mismo, change = {same}.", "",
+              "## Umbrales elegidos (server/app.py)", "",
+              "- `QUALITY_MIN_SCORE = 0.5`: en la primera calibración descartó 21/30 fallos graves y ninguna",
+              "  variante real (0.71–0.78). Los fallos leves (algo borrosa/quemada) no se descartan pero",
+              "  quedan por debajo en la clasificación.",
+              "- `QUALITY_MIN_CHANGE = 0.11`: entre «sin cambios» (~0.10) e «intermedio» (~0.12).",
+              "  **Provisional: 1 sola foto real.** Recalibrar con la medición completa cuando haya crédito,",
+              "  también en modo zonas (ahí el cambio se mide en el recorte de la zona)."]
     (OUT / "report.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
     return 0
