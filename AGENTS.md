@@ -9,8 +9,8 @@ necesita, en vez de que cada cambio dispare una relectura completa del repositor
 | Agente | Archivo | Se ocupa de |
 |---|---|---|
 | Coordinador | `.claude/agents/coordinator.md` | Decide qué especialistas hacen falta, reparte contexto, integra, evita duplicar trabajo |
-| Architect | `.claude/agents/architect.md` | Arquitectura JS/CSS, el scope global compartido entre los 11 `<script>`, deuda técnica, cuándo merece la pena una migración |
-| UX/UI | `.claude/agents/ux-ui.md` | Diseño visual, responsive, accesibilidad, estados vacíos/carga/error, consistencia entre las 9 hojas de estilo |
+| Architect | `.claude/agents/architect.md` | Arquitectura JS/CSS, el scope global compartido entre los 13 `<script>`, deuda técnica, cuándo merece la pena una migración |
+| UX/UI | `.claude/agents/ux-ui.md` | Diseño visual, responsive, accesibilidad, estados vacíos/carga/error, consistencia entre las 11 hojas de estilo |
 | AI Engineer | `.claude/agents/ai-engineer.md` | OCR (Tesseract), detección de muros, maqueta 3D conceptual, y cualquier función generativa/IA nueva |
 | QA | `.claude/agents/qa.md` | Tests existentes, regresiones visuales con Playwright, navegadores/tamaños, validación antes de aceptar un cambio |
 | Security | `.claude/agents/security.md` | Secretos/API keys, XSS, dependencias, privacidad (todo el proyecto es cliente-solo, sin backend propio) |
@@ -34,11 +34,11 @@ trabaja solo sobre los archivos que el coordinador le indique.
 
 ## Cosas específicas de este repo que todo agente debe respetar
 
-- **No hay módulos ES ni bundler en producción.** Los 11 archivos `.js` se cargan
+- **No hay módulos ES ni bundler en producción.** Los 13 archivos `.js` se cargan
   con `<script defer>` y comparten un único scope global (ver `PROJECT.md`). Antes
   de renombrar o eliminar una función/variable, comprobar en qué otros archivos se
   usa (y actualizar `eslint.config.mjs` si la lista de globals cambia).
-- **Las 9 hojas de CSS se cargan en un orden fijo y se re-tematizan a propósito
+- **Las 11 hojas de CSS se cargan en un orden fijo y se re-tematizan a propósito
   unas a otras** (ver `CSS_AUDIT.md`). No "limpiar" selectores duplicados entre
   archivos sin leer ese documento primero — es intencional, no un bug.
 - **`styles.css` tiene 70 selectores duplicados dentro del propio archivo**,

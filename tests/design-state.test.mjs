@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const nodes=new Map();const clicks=[];const events={};let failStorage=false;
+const node=selector=>{if(!nodes.has(selector))nodes.set(selector,{value:'',textContent:'',classList:{add(){},remove(){}},click(){clicks.push(selector)}});return nodes.get(selector)};
+const ctx=vm.createContext({structuredClone,console,setTimeout,clearTimeout,Intl,crypto:{randomUUID:()=>String(Math.random())},localStorage:{getItem:()=>null,setItem(){if(failStorage)throw Error('full')}},window:{addEventListener(k,fn){events[k]=fn}},document:{visibilityState:'visible',addEventListener(k,fn){events[k]=fn},querySelector:node}});
+const source=fs.readFileSync('app.js','utf8').replace(/init\(\);\s*$/,'');vm.runInContext(source,ctx);
+vm.runInContext(`renderRooms=updateProjectNumbers=renderDesign=renderFinishList=applyFinish=()=>{}; checkpoint=()=>{};toast=()=>{};goView=()=>{};`,ctx);
+const run=s=>vm.runInContext(s,ctx);
+run(`project=freshProject();createDesignRoom(false,'Salón','living');`);
+node('#startRoomType').value='Baño';run('startDesignFromHub(false)');assert.equal(run('roomType(selectedRoom())'),'bath');assert.equal(run('project.rooms.length'),2);assert.equal(clicks.at(-1),'[data-photo-tab="photo"]');
+run('startDesignFromHub(true)');assert.equal(run('project.rooms.length'),2);assert.equal(clicks.at(-1),'[data-photo-tab="concept"]');
+run(`project=freshProject();designDraft=defaultDesign();designDraft.wallName='Personalizado';designDraft.wallColor='#123456';designDraft.roomDetails={'Frentes':'Nogal'};saveFinish();`);
+assert.equal(run('project.finishes[selectedRoom().id].wallColor'),'#123456');
+run(`project.designDrafts={};loadDesignDraft(selectedRoom());designDraft.roomDetails.Frentes='Blanco';`);
+assert.equal(run('project.finishes[selectedRoom().id].roomDetails.Frentes'),'Nogal');
+assert.equal(run('saveState()'),true);failStorage=true;assert.equal(run('saveState()'),false);failStorage=false;
+run('saveSoon()');assert.notEqual(run('saveTimer'),null);events.pagehide();assert.equal(run('saveTimer'),null);
+console.log('PASS: selected room routing, photo/concept route, no-room draft save, saved detail isolation, storage error, close flush');
+const pro=fs.readFileSync('studio-pro.js','utf8');const pure=pro.slice(pro.indexOf('const types='),pro.indexOf('function showModal'));
+run(pure);assert.equal(run('Object.values(details).reduce((n,v)=>n+Object.keys(v).length,0)'),73);
+for(const look of run('looks')){assert.ok(run(`styleOptions.some(s=>s.id===${JSON.stringify(look.style)})`));assert.ok(run(`floorOptions.some(s=>s.name===${JSON.stringify(look.floor)})`));assert.ok(run(`colorOptions.some(s=>s[1]===${JSON.stringify(look.wall)})`));assert.ok(fs.existsSync(look.image),look.image)}
+assert.equal(run('looks.length'),7);
+console.log('PASS: 73 room decisions; all 7 reference looks resolve valid styles, colors, materials and images');

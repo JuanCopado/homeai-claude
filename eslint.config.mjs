@@ -51,7 +51,7 @@ const browserExtraGlobals = {
 export default [
   js.configs.recommended,
   {
-    ignores: ['dist/**', 'node_modules/**', 'vite.config.mjs', 'build.mjs', 'tests/**', 'planner-geometry.test.cjs'],
+    ignores: ['dist/**', 'node_modules/**', 'vite.config.mjs', 'build.mjs', 'run-tests.mjs', 'tests/**', 'planner-geometry.test.cjs'],
   },
   {
     files: ['*.js'],
@@ -72,7 +72,7 @@ export default [
       },
     },
     rules: {
-      // no-redeclare queda desactivado a propósito: en esta arquitectura (11 archivos
+      // no-redeclare queda desactivado a propósito: en esta arquitectura (13 archivos
       // <script> compartiendo un único scope global) cada símbolo listado arriba lo
       // "declara" un archivo (con const/let/function) y lo consumen los demás — eso es
       // exactamente lo que no-redeclare marcaría como error en el archivo que lo define,
