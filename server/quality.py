@@ -9,8 +9,13 @@ Dos señales sobre el mismo CLIP large/14 que ya usa la detección de estilo
 - realism: CLIP zero-shot, probabilidad de "foto nítida y realista de una
   habitación" frente a "imagen distorsionada, borrosa o con artefactos" (0-1).
 
-score = aesthetic normalizada (0-1) * 0,5 + realism * 0,5. Los pesos y el
-umbral de descarte se fijan con la medición real (server/validation/).
+- change (solo si se pasa el original): 1 - similitud coseno entre los
+  embeddings CLIP de la variante y del original. Detecta variantes en las que
+  el modelo "no hizo nada": la diferencia de píxeles no sirve (una variante
+  solo más luminosa movía 44 niveles de media, casi como una reforma real).
+
+score = aesthetic normalizada (0-1) * 0,5 + realism * 0,5. Umbrales de
+descarte calibrados en server/validation/check_quality.py.
 """
 
 from __future__ import annotations
@@ -50,19 +55,28 @@ class _Scorer:
         self.mlp.eval()
         self.texts = [GOOD] + BAD
 
-    def __call__(self, img: Image.Image) -> dict:
+    def embed(self, img: Image.Image):
+        # Embedding de imagen por las capas explícitas: estable entre versiones
+        # de transformers (get_image_features cambió de tipo de retorno).
         torch = self.torch
         with torch.no_grad():
-            inputs = self.proc(text=self.texts, images=img.convert("RGB"), return_tensors="pt", padding=True)
-            # Embedding de imagen por las capas explícitas: estable entre versiones
-            # de transformers (get_image_features cambió de tipo de retorno).
-            pooled = self.model.vision_model(pixel_values=inputs["pixel_values"]).pooler_output
-            emb = torch.nn.functional.normalize(self.model.visual_projection(pooled), dim=-1)
+            pix = self.proc(images=img.convert("RGB"), return_tensors="pt")["pixel_values"]
+            pooled = self.model.vision_model(pixel_values=pix).pooler_output
+            return torch.nn.functional.normalize(self.model.visual_projection(pooled), dim=-1)
+
+    def __call__(self, img: Image.Image, original: Image.Image | None = None) -> dict:
+        torch = self.torch
+        with torch.no_grad():
+            emb = self.embed(img)
             aesthetic = float(self.mlp(emb)[0, 0])
-            probs = self.model(**inputs).logits_per_image.softmax(dim=-1)[0]
-            realism = float(probs[0])
+            inputs = self.proc(text=self.texts, images=img.convert("RGB"), return_tensors="pt", padding=True)
+            realism = float(self.model(**inputs).logits_per_image.softmax(dim=-1)[0][0])
+            change = None if original is None else float(1 - (emb @ self.embed(original).T)[0, 0])
         a_norm = min(1.0, max(0.0, (aesthetic - 3.0) / 4.0))  # ~3 → 0, ~7 → 1
-        return {"aesthetic": round(aesthetic, 3), "realism": round(realism, 3), "score": round(0.5 * a_norm + 0.5 * realism, 3)}
+        out = {"aesthetic": round(aesthetic, 3), "realism": round(realism, 3), "score": round(0.5 * a_norm + 0.5 * realism, 3)}
+        if change is not None:
+            out["change"] = round(change, 4)
+        return out
 
 
 _scorer = None
@@ -77,5 +91,5 @@ def load_scorer():
     return _scorer
 
 
-def score(img: Image.Image) -> dict:
-    return load_scorer()(img)
+def score(img: Image.Image, original: Image.Image | None = None) -> dict:
+    return load_scorer()(img, original)
