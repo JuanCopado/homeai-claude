@@ -31,8 +31,15 @@
 
 ## Pendiente de la auditoría (2026-09-27)
 
-- **Subir `assets/`, `tests/` y `.openai/hosting.json`** desde la copia local de
-  Juan. Sin `assets/` la build no se puede generar ni publicar.
+- ~~Subir `assets/`, `tests/` y `.openai/hosting.json`~~ **Resuelto**: Juan subió
+  `assets/` (7 imágenes) y `tests/design-state.test.mjs`; `npm test` completo pasa
+  (design-state + 30 aserciones de geometría), `node build.mjs` genera `dist/` y el
+  barrido Playwright sobre `dist/` (7 vistas × 390/921/1440 px) da 0 errores de
+  consola, 0 peticiones fallidas y 35/35 archivos precacheados por el SW.
+  `.openai/hosting.json` no apareció en la copia local: se **reconstruyó** con lo
+  único documentado (`{"static":{"directory":"dist"}}`); si el hosting de ChatGPT
+  necesita más campos, sustituirlo por el original. `assets/tipo-a.png` no hace
+  falta: `app.js` solo lo usa para migrar proyectos antiguos que lo referencian.
 - SRI para Tesseract: hash candidato calculado del tarball npm 5.1.1
   (`sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F`),
   no aplicado porque el proxy de este entorno bloquea jsdelivr y no se pudo
