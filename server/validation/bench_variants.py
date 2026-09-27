@@ -69,14 +69,12 @@ def model_availability(token: str) -> list[tuple[str, list[str]]]:
 
 def main() -> int:
     OUT.mkdir(exist_ok=True)
-    for old in OUT.iterdir():
-        old.unlink()
     token = os.environ.get("HF_TOKEN", "").strip()
     report = ["# Variantes por petición: medición con el modelo real", ""]
     if not token:
         report.append("**No se ejecutó: falta el secreto `HF_TOKEN` en GitHub** "
                       "(Settings → Secrets and variables → Actions → New repository secret).")
-        (OUT / "report.md").write_text("\n".join(report), encoding="utf-8")
+        (OUT / "last_attempt.md").write_text("\n".join(report), encoding="utf-8")
         print(report[-1])
         return 0
 
@@ -86,7 +84,7 @@ def main() -> int:
     live = [m for m, p in avail if any("live" in x for x in p)] or [m for m, p in avail if p and not p[0].startswith("error")]
     if not live:
         report.append("**Ningún candidato está servido para image-to-image: no se puede medir con este token.**")
-        (OUT / "report.md").write_text("\n".join(report), encoding="utf-8")
+        (OUT / "last_attempt.md").write_text("\n".join(report), encoding="utf-8")
         print("\n".join(report))
         return 1
     os.environ["HF_MODEL"] = live[0]
@@ -160,7 +158,8 @@ def main() -> int:
         for t in thumbs:
             grid.paste(t, (x, 0))
             x += t.width
-        grid.save(OUT / f"{n:02d}.jpg", quality=85)
+        if row["variants"]:  # sin variantes no se pisa la rejilla de una medición anterior
+            grid.save(OUT / f"{n:02d}.jpg", quality=85)
 
     report += ["## Latencia (segundos por petición completa)", "", "| Foto | Caso | 1 variante | 2 en paralelo | 3 en paralelo |",
                "|---|---|---|---|---|"]
@@ -176,6 +175,15 @@ def main() -> int:
     report += ["", f"Generaciones hechas: {calls}." + (f" Parada: `{stopped}`." if stopped else ""), "",
                *[f"![{r['n']:02d}]({r['n']:02d}.jpg)" for r in data], "",
                "Fotos: Wikimedia Commons, atribución en `../results/report.md`."]
+    if not any(r["variants"] for r in data):
+        # Nada generado (p. ej. crédito agotado desde el principio): no se
+        # pisan los resultados de una medición anterior válida.
+        (OUT / "last_attempt.md").write_text("\n".join(report), encoding="utf-8")
+        print("\n".join(report))
+        return 0
+    for old in OUT.glob("[0-9][0-9].jpg"):
+        if int(old.stem) not in {r["n"] for r in data}:
+            old.unlink()
     (OUT / "report.md").write_text("\n".join(report), encoding="utf-8")
     (OUT / "data.json").write_text(json.dumps([{k: v for k, v in r.items() if k != "variants"} for r in data],
                                               ensure_ascii=False, indent=1), encoding="utf-8")

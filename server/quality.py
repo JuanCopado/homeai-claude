@@ -64,14 +64,22 @@ class _Scorer:
             pooled = self.model.vision_model(pixel_values=pix).pooler_output
             return torch.nn.functional.normalize(self.model.visual_projection(pooled), dim=-1)
 
-    def __call__(self, img: Image.Image, original: Image.Image | None = None) -> dict:
+    def __call__(self, img: Image.Image, original: Image.Image | None = None, box=None) -> dict:
         torch = self.torch
         with torch.no_grad():
             emb = self.embed(img)
             aesthetic = float(self.mlp(emb)[0, 0])
             inputs = self.proc(text=self.texts, images=img.convert("RGB"), return_tensors="pt", padding=True)
             realism = float(self.model(**inputs).logits_per_image.softmax(dim=-1)[0][0])
-            change = None if original is None else float(1 - (emb @ self.embed(original).T)[0, 0])
+            if original is None:
+                change = None
+            elif box is None:
+                change = float(1 - (emb @ self.embed(original).T)[0, 0])
+            else:
+                # Con zonas: el cambio se mide en el recorte de la zona elegida,
+                # no en la imagen entera (si solo cambia el suelo, la imagen
+                # entera apenas "cambia" y se descartaría por error).
+                change = float(1 - (self.embed(img.crop(box)) @ self.embed(original.crop(box)).T)[0, 0])
         a_norm = min(1.0, max(0.0, (aesthetic - 3.0) / 4.0))  # ~3 → 0, ~7 → 1
         out = {"aesthetic": round(aesthetic, 3), "realism": round(realism, 3), "score": round(0.5 * a_norm + 0.5 * realism, 3)}
         if change is not None:
@@ -91,5 +99,5 @@ def load_scorer():
     return _scorer
 
 
-def score(img: Image.Image, original: Image.Image | None = None) -> dict:
-    return load_scorer()(img, original)
+def score(img: Image.Image, original: Image.Image | None = None, box=None) -> dict:
+    return load_scorer()(img, original, box)

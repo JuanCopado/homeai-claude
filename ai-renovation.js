@@ -30,7 +30,10 @@
    localStorage['homeai.renovationEndpoint']. */
 (()=>{'use strict';
 const MAX_SIDE=1024;
-const CLIENT_TIMEOUT_MS=150000;
+const CLIENT_TIMEOUT_MS=180000;
+// Versiones por petición: se generan en paralelo (no suma tiempo) y el
+// servidor puntúa y elige la mejor. Cada una gasta crédito de IA.
+const VARIANTS=2;
 const ACCEPTED=['image/jpeg','image/png','image/webp'];
 const STYLES=[
   ['Nórdico','estilo nórdico escandinavo, paredes blancas, madera clara, textiles de lino, plantas'],
@@ -56,6 +59,7 @@ const CURRENT_STYLES={
 };
 let current=null,stylePending=false,styleToken=0; // current = {style|null, source:'auto'|'user'|'none', reason}
 // Estado de zonas de la foto actual: mapa del servidor + selección + ajustes a pincel.
+let variantList=[],shownVariant=0;
 let seg=null,segPending=false,segToken=0,mode='zones',tool='tap',brushSize=30,basePixels=null,drawQueued=false,painting=false,lastPoint=null;
 
 function endpoint(){
@@ -112,7 +116,7 @@ function injectUI(){
     <label class="ai-reno-range">Cambio <span>Conservador</span><input type="range" id="aiRenoStrength" min="30" max="80" step="5" value="55" aria-label="Intensidad del cambio"><span>Creativo</span></label>
   </div></div>
   <div class="ai-orch-actions"><button type="button" class="btn btn-dark" id="aiRenoRun">Generar visualización</button><button type="button" class="btn btn-light" id="aiRenoCancel" hidden>Cancelar</button><span id="aiRenoStatus" class="ai-orch-status" aria-live="polite"></span></div>
-  <div class="ai-reno-wait" id="aiRenoWait" hidden><i></i><span>Transformando tu foto… suele tardar entre 10 y 60 segundos.</span></div>
+  <div class="ai-reno-wait" id="aiRenoWait" hidden><i></i><span>Generando ${VARIANTS} versiones de tu foto y eligiendo la mejor… suele tardar entre 30 y 60 segundos.</span></div>
   <div id="aiRenoResult" class="ai-reno-result" hidden>
     <div class="ai-reno-compare" id="aiRenoCompare" style="--pos:50%">
       <img id="aiRenoAfter" alt="Visualización generada por IA">
@@ -121,6 +125,8 @@ function injectUI(){
       <input type="range" id="aiRenoSlider" min="0" max="100" value="50" aria-label="Comparar antes y después">
     </div>
     <small>Imagen generada por IA a partir de tu foto. Puede cambiar detalles o inventar objetos: compruébala antes de tomar decisiones.</small>
+    <p class="ai-reno-lowq" id="aiRenoLowQ" hidden>Ninguna versión ha salido especialmente bien; te mostramos la mejor. Prueba con otro estilo o con menos intensidad de cambio.</p>
+    <details class="ai-reno-variants" id="aiRenoVariants" hidden><summary id="aiRenoVariantsSum">Ver otras versiones</summary><div class="ai-reno-variant-list" id="aiRenoVariantList" role="group" aria-label="Versiones generadas"></div></details>
     <div class="ai-orch-actions"><button type="button" class="btn btn-dark" id="aiRenoSave">Guardar en Archivos</button><button type="button" class="btn btn-light" id="aiRenoRetry">Probar otro estilo</button><button type="button" class="btn btn-light" id="aiRenoDiscard">Descartar</button></div>
   </div>
 </div>`;
@@ -463,15 +469,26 @@ async function run(){
   }
   form.append('style',style);
   form.append('strength',String(Number($('#aiRenoStrength').value)/100));
+  form.append('variants',String(VARIANTS));
   hideResult();busy(true);
   controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort('timeout'),CLIENT_TIMEOUT_MS);
   try{
     const res=await fetch(url+'/api/renovate',{method:'POST',body:form,signal:controller.signal});
     if(!res.ok)throw new Error(await errorMessage(res));
-    const blob=await res.blob();
-    if(!blob.type.startsWith('image/'))throw new Error('El servicio devolvió una respuesta inesperada. Inténtalo de nuevo.');
-    showResult(blob);
+    if((res.headers.get('Content-Type')||'').includes('application/json')){
+      // Varias versiones: el servidor ya eligió la mejor ("best").
+      const data=await res.json();
+      if(!Array.isArray(data.variants)||!data.variants.length)throw new Error('El servicio devolvió una respuesta inesperada. Inténtalo de nuevo.');
+      variantList=await Promise.all(data.variants.map(async v=>({blob:await (await fetch(v.image)).blob(),discarded:Boolean(v.discarded),reason:v.reason||null})));
+      const best=Math.min(Math.max(0,Number(data.best)||0),variantList.length-1);
+      showResult(variantList[best].blob);shownVariant=best;
+      renderVariants(best);$('#aiRenoLowQ').hidden=!data.low_quality;
+    }else{
+      const blob=await res.blob();
+      if(!blob.type.startsWith('image/'))throw new Error('El servicio devolvió una respuesta inesperada. Inténtalo de nuevo.');
+      variantList=[];showResult(blob);renderVariants(0);$('#aiRenoLowQ').hidden=true;
+    }
     status('Listo. Desliza para comparar antes y después.');
   }catch(e){
     const reason=controller.signal.aborted?controller.signal.reason:null;
@@ -502,10 +519,31 @@ function showResult(blob){
   $('#aiRenoResult').hidden=false;
 }
 
+const DISCARD_TEXT={sin_cambios:'Descartada: casi sin cambios',calidad_baja:'Descartada: calidad baja'};
+
+/* Miniaturas de todas las versiones; la mostrada va marcada. La elegida por
+   el servidor lleva "Elegida automáticamente"; las descartadas, el motivo. */
+function renderVariants(best){
+  const box=$('#aiRenoVariants'),list=$('#aiRenoVariantList');
+  list.querySelectorAll('img').forEach(i=>URL.revokeObjectURL(i.src));
+  box.hidden=variantList.length<2;
+  if(variantList.length<2){list.innerHTML='';return}
+  $('#aiRenoVariantsSum').textContent=`Ver otras versiones (${variantList.length-1})`;
+  list.innerHTML=variantList.map((v,i)=>`<button type="button" class="ai-reno-variant" data-reno-variant="${i}" aria-pressed="${i===shownVariant}"><img alt="Versión ${i+1}"><small>${i===best?'Elegida automáticamente':v.discarded?esc(DISCARD_TEXT[v.reason]||'Descartada'):'Versión '+(i+1)}</small></button>`).join('');
+  list.querySelectorAll('[data-reno-variant]').forEach(b=>{
+    const i=Number(b.dataset.renoVariant);
+    b.querySelector('img').src=URL.createObjectURL(variantList[i].blob);
+    b.onclick=()=>{shownVariant=i;showResult(variantList[i].blob);list.querySelectorAll('[data-reno-variant]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))};
+  });
+}
+
 function hideResult(){
   $('#aiRenoResult').hidden=true;
   if(resultUrl)URL.revokeObjectURL(resultUrl);
   resultUrl=null;resultBlob=null;$('#aiRenoAfter').removeAttribute('src');
+  $('#aiRenoVariantList').querySelectorAll('img').forEach(i=>URL.revokeObjectURL(i.src));
+  $('#aiRenoVariantList').innerHTML='';$('#aiRenoVariants').hidden=true;$('#aiRenoLowQ').hidden=true;
+  variantList=[];shownVariant=0;
 }
 
 async function save(){

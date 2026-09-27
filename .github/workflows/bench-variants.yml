@@ -9,7 +9,8 @@ on:
     branches: [claude/variantes-calidad]
     paths:
       - server/validation/bench_variants.py
-      - .github/workflows/bench-variants.yml
+      # (A propósito NO se incluye este fichero: editar el workflow no debe
+      # relanzar una medición que gasta crédito.)
   workflow_dispatch:
 permissions:
   contents: write

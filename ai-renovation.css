@@ -62,3 +62,13 @@
 .ai-reno-chip.is-suggested{border-color:#285541;box-shadow:inset 0 0 0 1px #285541}
 .ai-reno-chip.is-suggested::after{content:" · sugerido";font-size:9px;opacity:.75}
 .ai-reno-chip.is-suggested[aria-pressed="true"]::after{opacity:.9}
+/* Varias versiones */
+.ai-reno-lowq{margin:8px 0 0;max-width:720px;font-size:10px;line-height:1.5;color:#6b5a2e;background:#fbf6ea;border:1px solid #efe3c4;border-radius:8px;padding:7px 10px}
+.ai-reno-variants{margin-top:8px;max-width:720px;font-size:11px;color:#39443d}
+.ai-reno-variants summary{cursor:pointer;color:#285541;min-height:28px;display:flex;align-items:center}
+.ai-reno-variant-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.ai-reno-variant{border:2px solid transparent;border-radius:8px;padding:0;background:none;cursor:pointer;width:120px;text-align:left;font:inherit}
+.ai-reno-variant img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block;background:#f1f2ee}
+.ai-reno-variant small{display:block;padding:3px 2px;font-size:9px;color:#5d685f;line-height:1.3}
+.ai-reno-variant[aria-pressed="true"]{border-color:#285541}
+.ai-reno-variant:focus-visible{outline:2px solid #285541;outline-offset:2px}

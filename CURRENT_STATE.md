@@ -126,6 +126,24 @@
       puntuó casi igual que el original (0,786 frente a 0,782): el puntuador
       no detecta que el modelo no hizo nada → hace falta una señal de "cambio
       respecto al original" además de la estética.
+  - **Filtro de calidad implementado (2026-09-27)**, a la espera de recalibrar
+    con crédito. Servidor: `variants` (1–3) en `/api/renovate`, generación en
+    paralelo, puntuador `quality.py` (LAION + realismo CLIP + cambio respecto
+    al original, con zonas medido en el recorte de la zona), descartes
+    (nota < 0,5; cambio < 0,11, provisional), un reintento si caen todas, la
+    mejor disponible con aviso, y fallos parciales tolerados. Modelo por
+    defecto cambiado a `Qwen/Qwen-Image-Edit` (SDXL no está servido).
+    Interfaz: pide 2 versiones, espera "Generando 2 versiones…", muestra la
+    elegida con "Ver otras versiones", descartadas con su motivo y aviso de
+    calidad baja. Calibración sin crédito: 30/30 fallos simulados por debajo
+    de su original. Verificado: 88 tests; navegador → servidor real con
+    generación simulada (2 versiones, elegir otra, guardar, calidad baja,
+    servidor antiguo que responde JPEG, zonas intactas fuera de la máscara).
+    Se detectó y corrigió en la prueba de zonas que medir el cambio sobre la
+    imagen entera marcaba "sin cambios" todo cambio de zona (y reintentaba,
+    duplicando coste). **Pendiente con crédito:** la medición completa
+    (2 frente a 3 versiones en 5 fotos), recalibrar `QUALITY_MIN_CHANGE`
+    (sobre todo en modo zonas) y medir Qwen-Image-Edit.
   - **En cola, en este orden:** (1) filtro de calidad con varias variantes
     (medir primero con 2); (2) investigación de reconstrucción 3D de
     habitaciones a partir de fotos (una foto vs. varias/vídeo; licencia,
