@@ -1,0 +1,9 @@
+{
+ "method": "depth_anything_v2_small",
+ "case": "01",
+ "ok": true,
+ "seconds": 1.7,
+ "points": 570368,
+ "model": "depth-anything/Depth-Anything-V2-Small-hf",
+ "note": "profundidad relativa; FOV supuesto 60°"
+}
