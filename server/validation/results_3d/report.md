@@ -22,13 +22,13 @@ Metadatos consultados en vivo (Hugging Face y GitHub) en esta ejecución. Prueba
 
 | Método | Caso | Resultado | Tiempo CPU | Puntos | Notas |
 |---|---|---|---|---|---|
-| depth_anything_v2_small | 01 | ✅ | 1.7 s | 570368 | {'note': 'profundidad relativa; FOV supuesto 60°'} |
-| depth_anything_v2_small | 04 | ✅ | 1.1 s | 786432 | {'note': 'profundidad relativa; FOV supuesto 60°'} |
-| moge2 | 01 | ❌ RuntimeError: Input type (c10::Half) and bias type (float) should be the same | 0.0 s | — |  |
-| moge2 | 04 | ❌ RuntimeError: Input type (c10::Half) and bias type (float) should be the same | 0.0 s | — |  |
-| mapanything_apache | multi | ✅ | 69.3 s | 761453 | {'vistas': 4} |
-| mapanything_apache | single_01 | ✅ | 12.2 s | 141680 | {'vistas': 1} |
-| vggt_1b_commercial | multi | ❌ GatedRepoError: 403 Client Error. (Request ID: Root=1-6ab99b10-5b44881646de076c3f7b420a;df5482f1-8c3c-4ec5-9c0f-763003244d04)
+| depth_anything_v2_small | 01 | ✅ | 1.8 s | 570368 | {'note': 'profundidad relativa; FOV supuesto 60°'} |
+| depth_anything_v2_small | 04 | ✅ | 1.2 s | 786432 | {'note': 'profundidad relativa; FOV supuesto 60°'} |
+| moge2 | 01 | ✅ | 28.0 s | 570368 | {'fov_estimado': 83.6, 'profundidad_mediana_m': 3.97} |
+| moge2 | 04 | ✅ | 27.8 s | 786432 | {'fov_estimado': 51.3, 'profundidad_mediana_m': 2.45} |
+| mapanything_apache | multi | ✅ | 74.7 s | 761420 | {'vistas': 4} |
+| mapanything_apache | single_01 | ✅ | 13.1 s | 141687 | {'vistas': 1} |
+| vggt_1b_commercial | multi | ❌ GatedRepoError: 403 Client Error. (Request ID: Root=1-6ab99cad-6af77b4712da867877b9774e;b71c36d2-2641-4431-a684-a4e7cbe3d929)
 
 Cannot access gated repo for url  | 0.0 s | — |  |
 
@@ -45,6 +45,18 @@ Nube: `depth_anything_v2_small/01.glb`
 ![](depth_anything_v2_small/04.jpg)
 
 Nube: `depth_anything_v2_small/04.glb`
+
+### moge2 — 01
+
+![](moge2/01.jpg)
+
+Nube: `moge2/01.glb`
+
+### moge2 — 04
+
+![](moge2/04.jpg)
+
+Nube: `moge2/04.glb`
 
 ### mapanything_apache — multi
 

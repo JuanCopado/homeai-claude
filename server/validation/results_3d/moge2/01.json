@@ -1,7 +1,10 @@
 {
  "method": "moge2",
  "case": "01",
- "ok": false,
- "seconds": 0.0,
- "error": "RuntimeError: Input type (c10::Half) and bias type (float) should be the same"
+ "ok": true,
+ "seconds": 28.0,
+ "points": 570368,
+ "model": "Ruicheng/moge-2-vitl-normal",
+ "fov_estimado": 83.6,
+ "profundidad_mediana_m": 3.97
 }

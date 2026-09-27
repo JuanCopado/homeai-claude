@@ -2,8 +2,8 @@
  "method": "mapanything_apache",
  "case": "single_01",
  "ok": true,
- "seconds": 12.2,
- "points": 141680,
+ "seconds": 13.1,
+ "points": 141687,
  "model": "facebook/map-anything-apache",
  "vistas": 1
 }
