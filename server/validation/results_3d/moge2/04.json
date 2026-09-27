@@ -1,0 +1,10 @@
+{
+ "method": "moge2",
+ "case": "04",
+ "ok": true,
+ "seconds": 27.8,
+ "points": 786432,
+ "model": "Ruicheng/moge-2-vitl-normal",
+ "fov_estimado": 51.3,
+ "profundidad_mediana_m": 2.45
+}

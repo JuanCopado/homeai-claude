@@ -1,0 +1,67 @@
+name: Investigar reconstrucción 3D
+# Prueba candidatas de reconstrucción 3D de habitaciones con fotos reales en CPU
+# (server/validation/r3d/) y guarda nubes, vistas e informe en la rama.
+# Cada método va en su paso, con continue-on-error, para que un problema de
+# dependencias de uno no impida probar los demás. HF_TOKEN solo se usa para
+# descargar modelos con acceso restringido (VGGT-Commercial) y metadatos.
+on:
+  push:
+    branches: [claude/reconstruccion-3d]
+    paths:
+      - server/validation/r3d/**
+      - .github/workflows/research-3d.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: research-3d
+  cancel-in-progress: true
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Dependencias base
+        run: pip install --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "transformers>=4.40" pillow numpy requests trimesh huggingface_hub opencv-python-headless
+      - name: Fotos de prueba
+        run: cd server/validation && python -m r3d.fetch
+      - name: Depth Anything V2 Small (1 foto)
+        continue-on-error: true
+        timeout-minutes: 15
+        run: cd server/validation && python -m r3d.depth_anything
+      - name: MoGe-2 (1 foto)
+        continue-on-error: true
+        timeout-minutes: 25
+        run: |
+          pip install git+https://github.com/microsoft/MoGe.git
+          cd server/validation && python -m r3d.moge
+      - name: MapAnything Apache (varias fotos)
+        continue-on-error: true
+        timeout-minutes: 35
+        run: |
+          pip install git+https://github.com/facebookresearch/map-anything.git
+          cd server/validation && python -m r3d.mapanything
+      - name: VGGT-1B-Commercial (varias fotos)
+        continue-on-error: true
+        timeout-minutes: 30
+        run: |
+          pip install git+https://github.com/facebookresearch/vggt.git
+          cd server/validation && python -m r3d.vggt_commercial
+      - name: Informe
+        if: always()
+        run: cd server/validation && python -m r3d.report
+      - name: Guardar resultados en la rama
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/validation/results_3d
+          git commit -m "Resultados de la investigación de reconstrucción 3D" || exit 0
+          git pull --rebase origin claude/reconstruccion-3d && git push

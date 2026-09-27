@@ -1,0 +1,7 @@
+{
+ "method": "vggt_1b_commercial",
+ "case": "multi",
+ "ok": false,
+ "seconds": 0.0,
+ "error": "GatedRepoError: 403 Client Error. (Request ID: Root=1-6ab99cad-6af77b4712da867877b9774e;b71c36d2-2641-4431-a684-a4e7cbe3d929)\n\nCannot access gated repo for url https://huggingface.co/facebook/VGGT-1B-Commercial/resolve/main/model.safetensors.\nAccess to model facebook/VGGT-1B-Commercial is restricted and you are not in the authorized list. Visit https://huggingface.co/facebook/VGGT-1B-Commercial to ask for access."
+}
