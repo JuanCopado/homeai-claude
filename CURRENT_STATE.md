@@ -214,6 +214,8 @@
   con pincel también, varias zonas, foto nueva reinicia, fallo → toda la foto,
   sin errores de consola ni scroll horizontal a 390 y 1440 px; regresión de
   las 7 vistas y del flujo de foto entera.
+  Resultado con el modelo real (6 fotos × 2 selecciones): **0,000 % de fuga
+  fuera de la máscara en los 12 casos** (`validation/results_server/report.md`).
   Pendiente: probar en un despliegue real (Space) y con buhardillas; el
   endpoint de segmentación no tiene autenticación (límite por IP y
   concurrencia), como el resto del servicio.
