@@ -23,6 +23,7 @@ import threading
 import time
 from collections import defaultdict, deque
 
+import numpy as np
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -78,7 +79,11 @@ def settings() -> dict:
     (y probar) sin reiniciar el proceso."""
     return {
         "token": os.environ.get("HF_TOKEN", "").strip(),
-        "model": os.environ.get("HF_MODEL", "stabilityai/stable-diffusion-xl-base-1.0"),
+        # SDXL no lo sirve ningún proveedor para image-to-image (comprobado con
+        # token real, validation/results_variants/). Qwen-Image-Edit: servido
+        # (fal-ai, wavespeed) y Apache-2.0. Alternativa medida:
+        # black-forest-labs/FLUX.1-Kontext-dev (licencia no comercial de pesos).
+        "model": os.environ.get("HF_MODEL", "Qwen/Qwen-Image-Edit"),
         "provider": os.environ.get("HF_PROVIDER", "auto"),
         "timeout": env_float("HF_TIMEOUT_SECONDS", 120),
         "max_upload": env_int("MAX_UPLOAD_MB", 10) * 1024 * 1024,
@@ -90,6 +95,12 @@ def settings() -> dict:
         "seg_rate_per_hour": env_int("SEG_RATE_LIMIT_PER_HOUR", 30),
         "seg_concurrent": env_int("MAX_CONCURRENT_SEGMENTATIONS", 2),
         "style_rate_per_hour": env_int("STYLE_RATE_LIMIT_PER_HOUR", 30),
+        # Variantes por petición y filtro de calidad (server/quality.py).
+        # Umbrales calibrados en validation/results_quality/report.md
+        # (min_change es provisional: sale de una sola foto real).
+        "variants_max": env_int("VARIANTS_MAX", 3),
+        "min_score": env_float("QUALITY_MIN_SCORE", 0.5),
+        "min_change": env_float("QUALITY_MIN_CHANGE", 0.11),
     }
 
 
@@ -110,7 +121,9 @@ _active = 0
 _seg_active = 0
 
 
-def check_rate_limit(client_id: str, per_hour: int) -> None:
+def check_rate_limit(client_id: str, per_hour: int, weight: int = 1) -> None:
+    """weight = cuántas unidades consume la petición (cada variante generada
+    gasta crédito, así que cuenta como una visualización)."""
     if per_hour <= 0:
         return
     now = time.monotonic()
@@ -118,10 +131,10 @@ def check_rate_limit(client_id: str, per_hour: int) -> None:
         q = _hits[client_id]
         while q and now - q[0] > 3600:
             q.popleft()
-        if len(q) >= per_hour:
-            retry = int(3600 - (now - q[0])) + 1
+        if len(q) + weight > per_hour:
+            retry = int(3600 - (now - q[0])) + 1 if q else 3600
             raise ApiError(429, "rate_limited", "Has alcanzado el límite de visualizaciones por hora. Prueba más tarde.", retry)
-        q.append(now)
+        q.extend([now] * weight)
 
 
 def acquire_slot(max_concurrent: int) -> None:
@@ -298,6 +311,75 @@ def generate(img: Image.Image, prompt: str, strength: float, cfg: dict) -> Image
     return result.convert("RGB")
 
 
+def generate_variants(img, prompt, strength, cfg, n, mask_arr):
+    """Genera n variantes EN PARALELO (la latencia es la de la más lenta, no la
+    suma: 1 variante 45 s frente a 2 en paralelo 28 s en la medición real),
+    aplica la máscara a cada una y las puntúa frente al original.
+
+    Devuelve (variantes, primer_error). Una variante que falla no tumba a las
+    demás; si fallan todas, el llamante lanza el primer error.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(_):
+        try:
+            out = generate(img, prompt, strength, cfg)
+        except ApiError as exc:
+            return exc
+        if mask_arr is not None:
+            out = seg.composite(img, out, mask_arr)
+        return out
+
+    with ThreadPoolExecutor(n) as ex:
+        results = list(ex.map(one, range(n)))
+    variants = [{"image": r} for r in results if not isinstance(r, ApiError)]
+    first_error = next((r for r in results if isinstance(r, ApiError)), None)
+    box = None
+    if mask_arr is not None:
+        ys, xs = np.nonzero(mask_arr)
+        pad = 8
+        box = (max(0, xs.min() - pad), max(0, ys.min() - pad), min(img.width, xs.max() + pad + 1), min(img.height, ys.max() + pad + 1))
+    try:
+        import quality
+
+        for v in variants:
+            v.update(quality.score(v["image"], img, box))
+    except Exception:  # noqa: BLE001 - sin puntuador se devuelven sin filtrar
+        log.exception("Fallo del puntuador de calidad; se devuelven las variantes sin filtrar")
+    return variants, first_error
+
+
+def judge(variants: list[dict], cfg: dict) -> None:
+    """Marca descartes: sin cambios respecto al original (el modelo "no hizo
+    nada") o calidad por debajo del umbral. Con zonas, "change" ya viene
+    medido sobre el recorte de la zona (generate_variants), así que el mismo
+    umbral vale en los dos modos."""
+    min_change = cfg["min_change"]
+    for v in variants:
+        if "score" not in v:
+            v["discarded"], v["reason"] = False, None
+        elif v.get("change") is not None and v["change"] < min_change:
+            v["discarded"], v["reason"] = True, "sin_cambios"
+        elif v["score"] < cfg["min_score"]:
+            v["discarded"], v["reason"] = True, "calidad_baja"
+        else:
+            v["discarded"], v["reason"] = False, None
+
+
+def pick_best(variants: list[dict]) -> int:
+    """La de más nota entre las no descartadas. Si todas lo están, antes una de
+    «calidad baja» que una «sin cambios»: mostrar la foto tal cual no sirve."""
+    rank = {None: 0, "calidad_baja": 1, "sin_cambios": 2}
+
+    def key(i):
+        v = variants[i]
+        if v.get("reason") == "sin_cambios":  # entre las "sin cambios", la que más cambió
+            return (2, -(v.get("change") or 0))
+        return (rank.get(v.get("reason"), 1), -v.get("score", 0))
+
+    return min(range(len(variants)), key=key)
+
+
 def to_jpeg(img: Image.Image) -> bytes:
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=90)
@@ -426,8 +508,10 @@ async def renovate(
     strength: float = Form(0.55),
     mask: UploadFile | None = File(None),
     zones: str = Form(""),
+    variants: int = Form(1),
 ):
     cfg = settings()
+    n = min(max(1, variants), max(1, cfg["variants_max"]))
     if not cfg["token"]:
         raise ApiError(503, "not_configured", "El servicio de IA no está configurado (falta HF_TOKEN en el servidor).")
     style = clean_style(style)
@@ -443,7 +527,8 @@ async def renovate(
         mask_arr = read_mask(mask_bytes, img.size)
     prompt = build_prompt(style, zone_list if mask_arr is not None else [])
 
-    check_rate_limit(request.client.host if request.client else "unknown", cfg["rate_per_hour"])
+    client_id = request.client.host if request.client else "unknown"
+    check_rate_limit(client_id, cfg["rate_per_hour"], weight=n)
     acquire_slot(cfg["max_concurrent"])
     started = time.monotonic()
     try:
@@ -451,13 +536,45 @@ async def renovate(
         # no parar el bucle de eventos mientras el modelo trabaja.
         from starlette.concurrency import run_in_threadpool
 
-        result = await run_in_threadpool(generate, img, prompt, strength, cfg)
-        if mask_arr is not None:
-            result = seg.composite(img, result, mask_arr)
-        body = to_jpeg(result)
+        if n == 1:
+            # Una sola variante: sin puntuar (ahorra CPU), respuesta JPEG como siempre.
+            result = await run_in_threadpool(generate, img, prompt, strength, cfg)
+            if mask_arr is not None:
+                result = seg.composite(img, result, mask_arr)
+            body = to_jpeg(result)
+        else:
+            found, error = await run_in_threadpool(generate_variants, img, prompt, strength, cfg, n, mask_arr)
+            if not found:
+                raise error
+            judge(found, cfg)
+            retried = False
+            if all(v["discarded"] for v in found):
+                # Todas por debajo del umbral: un reintento (consume cupo) y se
+                # muestra la mejor disponible de todas.
+                try:
+                    check_rate_limit(client_id, cfg["rate_per_hour"], weight=n)
+                    more, _ = await run_in_threadpool(generate_variants, img, prompt, strength, cfg, n, mask_arr)
+                    judge(more, cfg)
+                    found += more
+                    retried = True
+                except ApiError:
+                    pass  # sin cupo o crédito para reintentar: se muestra la mejor que hay
+            best = pick_best(found)
+            payload = {
+                "best": best,
+                "retried": retried,
+                "low_quality": found[best]["discarded"],
+                "variants": [
+                    {"image": "data:image/jpeg;base64," + base64.b64encode(to_jpeg(v["image"])).decode(),
+                     **{k: v.get(k) for k in ("score", "aesthetic", "realism", "change", "discarded", "reason")}}
+                    for v in found
+                ],
+            }
     finally:
         release_slot()
         # Solo métricas, nunca la foto, la máscara ni el texto del usuario.
-        log.info("renovate size=%sx%s strength=%.2f masked=%s seconds=%.1f", img.width, img.height, strength,
-                 mask_arr is not None, time.monotonic() - started)
-    return Response(body, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+        log.info("renovate size=%sx%s strength=%.2f masked=%s variants=%s seconds=%.1f", img.width, img.height,
+                 strength, mask_arr is not None, n, time.monotonic() - started)
+    if n == 1:
+        return Response(body, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})

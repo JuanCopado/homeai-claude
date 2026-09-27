@@ -105,6 +105,45 @@
     Resultado con CLIP real (`validation/results_style_server/report.md`):
     **12/12 correctos, 0 sugerencias incorrectas** (5 estilos acertados; 4
     exteriores, 2 vacías y 1 dudosa sin sugerencia y con su motivo).
+  - **Medición de variantes con el modelo real (2026-09-27, rama
+    `claude/variantes-calidad`, `validation/results_variants/`).** Con el
+    token de Juan (secreto `HF_TOKEN` de GitHub):
+    - **`stabilityai/stable-diffusion-xl-base-1.0` (el `HF_MODEL` por defecto
+      de `server/app.py`) NO lo sirve ningún proveedor para image-to-image**:
+      con la configuración por defecto, la función fallaría con
+      `model_unsupported`. Sí están servidos `black-forest-labs/FLUX.1-Kontext-dev`
+      (fal-ai, replicate, wavespeed) y `Qwen/Qwen-Image-Edit` (fal-ai,
+      wavespeed). Licencias a revisar antes de elegir: FLUX.1 Kontext [dev]
+      tiene licencia no comercial para los pesos; Qwen-Image-Edit es Apache-2.0.
+    - **El crédito gratuito se agotó a las 6 generaciones** (HTTP 402 →
+      `quota_exhausted`, gestionado como estaba previsto). Con 2-3 variantes
+      por petición, cada visualización costaría 2-3 veces más.
+    - Latencia (1 foto, FLUX Kontext): 1 variante 45 s; 2 en paralelo 28 s
+      en total → en paralelo no se suma el tiempo.
+    - Puntuador (LAION + realismo CLIP): de 3 variantes muy distintas (una casi
+      sin cambios, una reforma nórdica completa, una intermedia) eligió la
+      reforma completa (0,873 frente a 0,786/0,775). La variante "sin cambios"
+      puntuó casi igual que el original (0,786 frente a 0,782): el puntuador
+      no detecta que el modelo no hizo nada → hace falta una señal de "cambio
+      respecto al original" además de la estética.
+  - **Filtro de calidad implementado (2026-09-27)**, a la espera de recalibrar
+    con crédito. Servidor: `variants` (1–3) en `/api/renovate`, generación en
+    paralelo, puntuador `quality.py` (LAION + realismo CLIP + cambio respecto
+    al original, con zonas medido en el recorte de la zona), descartes
+    (nota < 0,5; cambio < 0,11, provisional), un reintento si caen todas, la
+    mejor disponible con aviso, y fallos parciales tolerados. Modelo por
+    defecto cambiado a `Qwen/Qwen-Image-Edit` (SDXL no está servido).
+    Interfaz: pide 2 versiones, espera "Generando 2 versiones…", muestra la
+    elegida con "Ver otras versiones", descartadas con su motivo y aviso de
+    calidad baja. Calibración sin crédito: 30/30 fallos simulados por debajo
+    de su original. Verificado: 88 tests; navegador → servidor real con
+    generación simulada (2 versiones, elegir otra, guardar, calidad baja,
+    servidor antiguo que responde JPEG, zonas intactas fuera de la máscara).
+    Se detectó y corrigió en la prueba de zonas que medir el cambio sobre la
+    imagen entera marcaba "sin cambios" todo cambio de zona (y reintentaba,
+    duplicando coste). **Pendiente con crédito:** la medición completa
+    (2 frente a 3 versiones en 5 fotos), recalibrar `QUALITY_MIN_CHANGE`
+    (sobre todo en modo zonas) y medir Qwen-Image-Edit.
   - **En cola, en este orden:** (1) filtro de calidad con varias variantes
     (medir primero con 2); (2) investigación de reconstrucción 3D de
     habitaciones a partir de fotos (una foto vs. varias/vídeo; licencia,

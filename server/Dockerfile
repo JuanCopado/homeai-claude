@@ -7,9 +7,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 ENV HF_HOME=/app/.cache/huggingface
-COPY segmentation.py style.py ./
-# Descarga los modelos (segmentación y estilo) al construir, no en la primera petición.
-RUN python -c "import segmentation as s, style as st; s.load_segmenter(); st.load_classifier()" && chown -R app /app/.cache
+COPY segmentation.py style.py quality.py ./
+# Descarga los modelos (segmentación, estilo y cabeza estética) al construir, no en la primera petición.
+RUN python -c "import segmentation as s, style as st, quality as q; s.load_segmenter(); st.load_classifier(); q.load_scorer()" && chown -R app /app/.cache
 COPY app.py .
 USER app
 ENV PORT=7860

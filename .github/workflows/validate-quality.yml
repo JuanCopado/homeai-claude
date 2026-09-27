@@ -1,0 +1,36 @@
+name: Calibrar puntuador
+# Calibra el puntuador de calidad (server/quality.py) con fallos simulados y
+# con las variantes reales ya generadas. No usa secretos ni gasta crédito.
+on:
+  push:
+    branches: [claude/variantes-calidad]
+    paths:
+      - server/quality.py
+      - server/validation/check_quality.py
+      - .github/workflows/validate-quality.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: validate-quality
+  cancel-in-progress: true
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r server/requirements.txt requests
+      - run: cd server/validation && python check_quality.py
+      - name: Guardar resultados en la rama
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/validation/results_quality
+          git commit -m "Resultados de la calibración del puntuador" || exit 0
+          # Otros workflows pueden haber subido a la rama mientras tanto.
+          git pull --rebase origin "${GITHUB_REF_NAME}" && git push

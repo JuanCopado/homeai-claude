@@ -102,6 +102,29 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
   demasiado, `STYLE_MODEL=openai/clip-vit-base-patch32` reduce ~1,1 GB a
   costa de precisión (ver validación).
 
+## Varias versiones por petición y filtro de calidad
+
+- `POST /api/renovate` acepta `variants` (1–3; la interfaz pide 2). Se generan
+  **en paralelo** (medido con FLUX Kontext: 1 versión 45 s, 2 en paralelo
+  28 s en total), se aplica la máscara de zonas a cada una y se puntúan con
+  `quality.py`: predictor estético de LAION + realismo por CLIP (el mismo
+  CLIP large/14 de la detección de estilo) + **cambio respecto al original**
+  (1 − similitud CLIP; con zonas, medido en el recorte de la zona).
+- Se descartan las de nota < `QUALITY_MIN_SCORE` (0,5) y las que casi no
+  cambian (< `QUALITY_MIN_CHANGE`, 0,11). Si caen todas, **un reintento** y se
+  muestra la mejor disponible (antes una de calidad baja que una sin cambios)
+  con `low_quality: true`. Una versión que falla no tumba a las demás.
+- Con `variants > 1` la respuesta es JSON: `{best, retried, low_quality,
+  variants: [{image (data URL JPEG), score, aesthetic, realism, change,
+  discarded, reason}]}`; con `variants = 1`, JPEG como antes.
+- **Cada versión cuenta para el límite por hora y gasta crédito de IA.**
+- Calibración (`validation/results_quality/report.md`): 30/30 fallos simulados
+  (borrosa, ruido, JPEG, deformada, quemada) puntúan por debajo de su
+  original; con 3 versiones reales el orden coincide con el de a ojo.
+  **Pendiente con crédito:** medir 2 frente a 3 versiones en 5 fotos
+  (`validation/bench_variants.py`) y recalibrar `QUALITY_MIN_CHANGE` (sale de
+  una sola foto) y, sobre todo, su valor en modo zonas.
+
 ## Modelo: lo que hay que saber antes de desplegar
 
 - `image_to_image` solo funciona con modelos que **algún proveedor sirva para
@@ -131,7 +154,7 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
 | Variable | Por defecto | Qué hace |
 |---|---|---|
 | `HF_TOKEN` | — (**obligatoria**) | Token *fine-grained* con permiso "Make calls to Inference Providers". Como **secreto**, nunca en el repo. |
-| `HF_MODEL` | `stabilityai/stable-diffusion-xl-base-1.0` | Id del modelo o URL de un Inference Endpoint. |
+| `HF_MODEL` | `Qwen/Qwen-Image-Edit` | Id del modelo o URL de un Inference Endpoint. SDXL (el valor anterior) no lo sirve ningún proveedor para image-to-image. |
 | `HF_PROVIDER` | `auto` | Proveedor (`auto`, `fal-ai`, `replicate`, `hf-inference`…). |
 | `HF_STEPS` / `HF_GUIDANCE_SCALE` | `30` / `7.0` | Pasos de difusión y adherencia al texto. |
 | `HF_TIMEOUT_SECONDS` | `120` | Espera máxima al proveedor. |
@@ -144,6 +167,9 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
 | `STYLE_MODEL` | `openai/clip-vit-large-patch14` | Modelo de detección de estilo. |
 | `STYLE_MIN_PROB` / `STYLE_MIN_MARGIN` | `0.5` / `0.2` | Umbral para afirmar un estilo (validado). |
 | `STYLE_RATE_LIMIT_PER_HOUR` | `30` | Límite propio de la detección de estilo. |
+| `VARIANTS_MAX` | `3` | Máximo de versiones por petición. |
+| `QUALITY_MIN_SCORE` / `QUALITY_MIN_CHANGE` | `0.5` / `0.11` | Umbrales de descarte (ver calibración). |
+| `AESTHETIC_WEIGHTS_URL` | GitHub de improved-aesthetic-predictor | Pesos del predictor estético (se descargan al construir la imagen). |
 
 ## Desplegar en un Hugging Face Space (recomendado para la fase 1)
 
@@ -166,7 +192,7 @@ Local:
 
 ```
 pip install -r requirements-dev.txt
-pytest -q                                   # 70 tests, sin llamar a Hugging Face
+pytest -q                                   # 88 tests, sin llamar a Hugging Face
 HF_TOKEN=hf_xxx ALLOWED_ORIGINS=http://localhost:8000 uvicorn app:app --port 7860
 ```
 
