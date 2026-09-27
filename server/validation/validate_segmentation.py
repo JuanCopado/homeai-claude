@@ -33,7 +33,7 @@ UA = {"User-Agent": "HomeAI-segmentation-validation/1.0 (https://github.com/Juan
 
 # Clases de ADE20K (nombres del id2label del modelo) agrupadas en zonas.
 ZONES = {
-    "pared": {"wall"},
+    "pared": {"wall", "column"},
     "suelo": {"floor"},
     "techo": {"ceiling"},
     "ventana/puerta": {"windowpane", "window", "door", "screen door", "double door"},
@@ -43,7 +43,7 @@ ZONES = {
         "fireplace", "refrigerator", "pillow", "bookcase", "coffee table", "toilet",
         "countertop", "stove", "kitchen island", "swivel chair", "chandelier", "ottoman",
         "buffet", "stool", "oven", "microwave", "dishwasher", "shower", "radiator",
-        "television receiver", "curtain", "blind", "rug", "painting", "mirror", "plant",
+        "television receiver", "curtain", "blind", "rug", "painting", "plant",
         "bench", "cradle", "sconce", "hood", "washer", "towel", "vase", "clock", "light",
     },
 }
@@ -53,15 +53,20 @@ COLORS = {
 }
 ZONE_ORDER = list(ZONES) + ["otros"]
 
+# "mirror" se deja fuera de las zonas a propósito: refleja paredes y techo, y
+# transformarlo como mobiliario redecoraría también lo que refleja.
 QUERIES = [
-    "filetype:bitmap living room interior",
-    "filetype:bitmap kitchen interior",
-    "filetype:bitmap bedroom interior",
-    "filetype:bitmap bathroom interior",
-    "filetype:bitmap attic room interior sloped ceiling",
-    "filetype:bitmap dark room interior",
+    "filetype:bitmap apartment living room",
+    "filetype:bitmap apartment kitchen",
+    "filetype:bitmap apartment bedroom",
+    "filetype:bitmap apartment bathroom",
+    "filetype:bitmap attic bedroom",
+    "filetype:bitmap small apartment interior",
+    "filetype:bitmap living room evening lamp",
 ]
-PER_QUERY = 2
+PER_QUERY = 3
+PAINTING = re.compile(r"painting|paintings|drawing|engraving|lithograph|museum|gemälde|schilderij", re.I)
+OUTDOOR = {"sky", "building", "tree", "road", "sidewalk", "grass", "mountain", "car", "house", "skyscraper", "field"}
 ALLOWED_LICENSES = re.compile(r"^(CC0|Public domain|CC BY(-SA)? [0-9.]+)", re.I)
 
 
@@ -77,15 +82,15 @@ def zone_of(label: str) -> str:
     return "otros"
 
 
-def fetch_commons(max_total: int = 10) -> list[dict]:
+def fetch_commons(max_total: int = 20) -> list[dict]:
     import requests
 
     picked, seen = [], set()
     for q in QUERIES:
         params = {
             "action": "query", "format": "json", "generator": "search", "gsrsearch": q,
-            "gsrnamespace": 6, "gsrlimit": 25, "prop": "imageinfo",
-            "iiprop": "url|size|mime|extmetadata", "iiurlwidth": 1280,
+            "gsrnamespace": 6, "gsrlimit": 50, "prop": "imageinfo",
+            "iiprop": "url|size|mime|extmetadata|metadata", "iiurlwidth": 1280,
         }
         try:
             data = requests.get("https://commons.wikimedia.org/w/api.php", params=params, headers=UA, timeout=30).json()
@@ -101,6 +106,13 @@ def fetch_commons(max_total: int = 10) -> list[dict]:
             if info.get("mime") not in ("image/jpeg", "image/png") or info.get("width", 0) < 800:
                 continue
             if not ALLOWED_LICENSES.match(lic) or page["title"] in seen:
+                continue
+            # Solo fotografías: con marca/modelo de cámara en el EXIF y sin
+            # categorías de pintura o museo (la búsqueda devolvía cuadros).
+            exif = {m.get("name"): m.get("value") for m in info.get("metadata") or []}
+            if not (exif.get("Make") or exif.get("Model")):
+                continue
+            if PAINTING.search(page["title"] + " " + meta.get("Categories", {}).get("value", "")):
                 continue
             artist = re.sub(r"<[^>]+>", "", html.unescape(meta.get("Artist", {}).get("value", "desconocido"))).strip()
             try:
@@ -201,17 +213,28 @@ def render(img: Image.Image, zmap: np.ndarray, stats: dict, path: Path) -> None:
 
 def main() -> int:
     OUT.mkdir(exist_ok=True)
-    photos = load_local() + fetch_commons()
-    if not photos:
+    for old in OUT.iterdir():
+        old.unlink()
+    candidates = load_local() + fetch_commons()
+    if not candidates:
         print("No hay fotos: ni en fotos/ ni descargadas de Wikimedia Commons.")
         return 1
     seg = Segmenter()
-    rows, summary = [], []
-    for n, ph in enumerate(photos, 1):
+    rows, summary, photos, skipped = [], [], [], []
+    for ph in candidates:
+        if len(photos) >= 10:
+            break
         img = ImageOps.exif_transpose(ph["image"]).convert("RGB")
         if max(img.size) > 1024:
             img.thumbnail((1024, 1024))
         labels, conf = seg(img)
+        ids, counts = np.unique(labels, return_counts=True)
+        outdoor = sum(c for i, c in zip(ids, counts) if norm(seg.id2label[int(i)]) in OUTDOOR) / labels.size
+        if outdoor > 0.15 and ph["license"] != "local":
+            skipped.append(f"{ph['title']} (exterior: {100 * outdoor:.0f}% cielo/edificio/árbol…)")
+            continue
+        photos.append(ph)
+        n = len(photos)
         zmap = zone_map(labels, seg.id2label)
         stats = analyse(zmap, conf, labels, seg.id2label)
         name = f"{n:02d}.jpg"
@@ -235,6 +258,10 @@ def main() -> int:
         "",
         *[f"## {s['n']:02d} — {s['query']}\n\n![{s['n']:02d}]({s['n']:02d}.jpg)\n\nClases principales: {', '.join(s['top'])}\n"
           for s in summary],
+        "## Descartadas automáticamente",
+        "",
+        *([f"- {s}" for s in skipped] or ["- ninguna"]),
+        "",
         "## Atribución de las fotos",
         "",
         *[f"- {n:02d}: [{ph['title']}]({ph['source']}) — {ph['artist']}, {ph['license']}" for n, ph in enumerate(photos, 1)],
