@@ -58,6 +58,24 @@
 
 ## Pendiente de la visualización con IA
 
+- **Validación de la segmentación (2026-09-27), hecha en GitHub Actions**
+  (`server/validation/`, workflow `validate-segmentation.yml`, rama
+  `claude/validacion-segmentacion`; el entorno no llega a huggingface.co).
+  SegFormer-b0 ADE20K sobre 10 fotos reales de pisos de Wikimedia Commons
+  (licencias libres, atribución en `server/validation/results/report.md`):
+  - **Pared, suelo y techo: fiables** en las 10 (confianza media 0,73–0,98),
+    también con poca luz (salón vacío oscuro, salón al atardecer).
+  - **Mobiliario: aceptable pero con bordes flojos** (confianza 0,48–0,86):
+    armarios blancos sobre pared blanca se confunden con pared, la base de
+    una isla de cocina sale como pared, unas puertas dobles como mobiliario.
+  - **Espejos y cristales: problemáticos** (reflejos clasificados como
+    ventana; mampara de ducha como ventana/puerta en la ronda 1). El espejo
+    ya se excluye de las zonas.
+  - Ronda 1 descartada como muestra (la búsqueda trajo cuadros de museo y
+    exteriores); ronda 2 filtra por EXIF de cámara y descarta exteriores.
+  - Sin probar aún: buhardillas/techos inclinados.
+  - Conclusión: sirve como punto de partida si el usuario **ve y puede
+    corregir** la zona antes de generar; no como verdad absoluta.
 - **Segmentación por zonas (pared/suelo/techo/mobiliario) — EN PAUSA hasta
   validar con fotos reales (decisión de Juan, 2026-09-27).** Orden acordado:
   1) validar la segmentación con 5–10 fotos reales, 2) solo entonces servidor
