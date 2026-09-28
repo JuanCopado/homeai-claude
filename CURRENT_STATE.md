@@ -10,6 +10,24 @@
 
 ## Hecho
 
+- **Pipeline de generación con Qwen-Image-Edit (2026-09-27).** Detalle y revisión
+  de presupuesto en `PIPELINE_QWEN.md`.
+  - Qwen/Qwen-Image-Edit por defecto, con prompts de instrucción (la intensidad
+    va en el texto, sin `strength`).
+  - Máximo 2 variantes.
+  - Filtro de similitud CLIP (> 0,89 = casi idéntica) ANTES del puntuador:
+    las casi idénticas se regeneran una vez.
+  - Backend configurable api/diffusers (`server/local_qwen.py`).
+  - Notebook de Colab generado desde el código (`server/validation/colab/`),
+    comprobado en CI con un Qwen diminuto.
+  - Prueba de coste manual (`api-cost-probe.yml`, ≤3 llamadas).
+  - **Pendiente:**
+    - Juan ejecuta el notebook en Colab;
+    - lanzar la prueba de coste cuando se renueve el crédito;
+    - recalibrar `SIMILARITY_MAX`;
+    - decidir el plan PRO de HF y un tope global de gasto antes de abrir la
+      función (ver `PIPELINE_QWEN.md`).
+
 - **Visualización de reforma con IA, fase 1 (MVP) (2026-09-27).** Foto real de
   la estancia + estilo → la misma estancia redecorada, vía Hugging Face
   Inference Providers (`image_to_image`). Primera función de HomeAI que envía

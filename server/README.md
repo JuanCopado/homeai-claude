@@ -102,52 +102,68 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
   demasiado, `STYLE_MODEL=openai/clip-vit-base-patch32` reduce ~1,1 GB a
   costa de precisión (ver validación).
 
-## Varias versiones por petición y filtro de calidad
+## Varias versiones por petición: filtro de similitud y de calidad
 
-- `POST /api/renovate` acepta `variants` (1–3; la interfaz pide 2). Se generan
-  **en paralelo** (medido con FLUX Kontext: 1 versión 45 s, 2 en paralelo
-  28 s en total), se aplica la máscara de zonas a cada una y se puntúan con
-  `quality.py`: predictor estético de LAION + realismo por CLIP (el mismo
-  CLIP large/14 de la detección de estilo) + **cambio respecto al original**
-  (1 − similitud CLIP; con zonas, medido en el recorte de la zona).
-- Se descartan las de nota < `QUALITY_MIN_SCORE` (0,5) y las que casi no
-  cambian (< `QUALITY_MIN_CHANGE`, 0,11). Si caen todas, **un reintento** y se
-  muestra la mejor disponible (antes una de calidad baja que una sin cambios)
-  con `low_quality: true`. Una versión que falla no tumba a las demás.
-- Con `variants > 1` la respuesta es JSON: `{best, retried, low_quality,
-  variants: [{image (data URL JPEG), score, aesthetic, realism, change,
-  discarded, reason}]}`; con `variants = 1`, JPEG como antes.
-- **Cada versión cuenta para el límite por hora y gasta crédito de IA.**
-- Calibración (`validation/results_quality/report.md`): 30/30 fallos simulados
-  (borrosa, ruido, JPEG, deformada, quemada) puntúan por debajo de su
-  original; con 3 versiones reales el orden coincide con el de a ojo.
-  **Pendiente con crédito:** medir 2 frente a 3 versiones en 5 fotos
-  (`validation/bench_variants.py`) y recalibrar `QUALITY_MIN_CHANGE` (sale de
-  una sola foto) y, sobre todo, su valor en modo zonas.
+Lógica en `pipeline.py` (la misma que ejecuta el notebook de Colab).
 
-## Modelo: lo que hay que saber antes de desplegar
+- `POST /api/renovate` acepta `variants` (1–2; la interfaz pide 2; `VARIANTS_MAX`
+  no puede subirlo de 2 porque el coste es por imagen). Se generan **en
+  paralelo** y se aplica la máscara de zonas a cada una.
+- **Paso 1, filtro de similitud (antes del puntuador):** similitud coseno CLIP
+  entre cada versión y el original (con zonas, en el recorte de la zona). Si
+  supera `SIMILARITY_MAX` (0,89) la versión es «casi idéntica»: se descarta
+  (`reason: "sin_cambios"`) y **se regenera una vez** (una llamada más por cada
+  una, que cuenta para el límite por hora). Un hash perceptual no sirve aquí:
+  una versión solo más luminosa ya lo cambia mucho y CLIP sí la reconoce como
+  la misma foto.
+- **Paso 2, puntuador:** solo las que pasan el filtro se puntúan con
+  `quality.py` (predictor estético de LAION + realismo por CLIP, el mismo CLIP
+  large/14 de la detección de estilo). Nota < `QUALITY_MIN_SCORE` (0,5) →
+  `calidad_baja`. Las de calidad baja **no** se regeneran (coste).
+- Se muestra la mejor no descartada; si no queda ninguna, antes una de calidad
+  baja que una sin cambios, con `low_quality: true`. Peor caso: 4 llamadas
+  al modelo por petición (2 + 2 regeneraciones).
+- Con `variants > 1` la respuesta es JSON: `{best, retried, regenerated,
+  low_quality, variants: [{image (data URL JPEG), score, aesthetic, realism,
+  similarity, discarded, reason}]}`; con `variants = 1`, JPEG como antes.
+- Si CLIP o el puntuador fallan, se devuelven las versiones sin ese filtro.
+- `SIMILARITY_MAX` sale de una sola foto real (FLUX Kontext): **provisional**
+  hasta la medición en Colab (`validation/colab/`), que mide la similitud de
+  cada generación con Qwen-Image-Edit.
 
-- `image_to_image` solo funciona con modelos que **algún proveedor sirva para
-  esa tarea**. Qué modelos están servidos cambia con el tiempo y **no se pudo
-  comprobar al escribir esto** (el entorno de desarrollo no tenía acceso a
-  huggingface.co). Antes de desplegar, ejecuta:
+## Modelo: Qwen-Image-Edit
 
-  ```
-  HF_TOKEN=hf_xxx python check_model.py stabilityai/stable-diffusion-xl-base-1.0
-  ```
+- Por defecto `Qwen/Qwen-Image-Edit` (Apache-2.0, uso comercial). SDXL ya no lo
+  sirve ningún proveedor para image-to-image; FLUX.1 Kontext [dev] se descartó
+  por su licencia no comercial. Comprobar antes de desplegar:
+  `HF_TOKEN=hf_xxx python check_model.py Qwen/Qwen-Image-Edit` (en septiembre de
+  2026 lo servían fal-ai y wavespeed).
+- **Es un modelo de edición por instrucciones, no img2img:** el texto lo lee
+  Qwen2.5-VL mirando la foto (semántica) y el VAE conserva la apariencia. Por
+  eso `pipeline.build_prompt` escribe una instrucción en inglés («Redecorate
+  this room in this style: …. Keep the same room and the same camera
+  angle…»), con el estilo del usuario tal cual (Qwen2.5-VL entiende español).
+- **No existe `strength`:** la intensidad de la interfaz (0,30–0,80) se traduce
+  a la instrucción (≤0,45 retoque de colores/textiles/decoración; ≤0,65 cambiar
+  muebles y acabados; más, rediseño completo). `strength` solo se sigue
+  enviando si `HF_MODEL` es un img2img clásico.
+- La guía de Qwen es `true_cfg_scale` con prompt negativo (4 por defecto, 30
+  pasos en fal-ai). El resultado sale a ~1 MP y se devuelve al tamaño de la
+  foto.
+- Coste por la API: fal-ai cobra ~0,03 $ por megapíxel → ~0,03 $ por imagen,
+  ~0,06 $ por petición de 2 versiones (hasta ~0,12 $ con regeneraciones).
+  Pendiente de confirmar con `validation/api_cost_probe.py`.
 
-  Si responde "ningún proveedor lo sirve", prueba otro candidato y pon el que
-  funcione en `HF_MODEL`. Candidatos, por orden de preferencia para este caso:
-  1. Modelos de **edición por instrucciones** (p. ej. de la familia FLUX Kontext
-     o Qwen-Image-Edit, si aparecen servidos para image-to-image): suelen
-     respetar la estructura de la foto mucho mejor que img2img clásico.
-  2. `stabilityai/stable-diffusion-xl-base-1.0` (img2img con `strength`).
-  3. SD 1.5 + ControlNet depth: **no** está disponible como image-to-image
-     serverless. Necesita la fase 2 (Endpoint o Space con GPU). Nota: el repo
-     `runwayml/stable-diffusion-v1-5` fue retirado; el espejo actual es
-     `stable-diffusion-v1-5/stable-diffusion-v1-5`.
-- `strength` (0,30–0,80; la tarjeta usa 0,55 por defecto) se envía como
-  parámetro extra. Los modelos de edición por instrucciones lo ignoran.
+### Backend propio con GPU (`GEN_BACKEND=diffusers`)
+
+`local_qwen.py` ejecuta el mismo modelo con diffusers (`QwenImageEditPipeline`)
+en una GPU propia, con la misma interfaz que la API (el filtro de similitud y
+el puntuador no cambian). Instalar `requirements-gpu.txt` sobre un torch CUDA.
+El modelo son ~54 GB en bf16 (transformer 20B + Qwen2.5-VL 7B): con
+`QWEN_QUANT=nf4` (4 bits) cabe en una GPU de 24 GB; sin cuantizar hace falta
+una de 80 GB. `QWEN_LIGHTNING=1` usa la LoRA Lightning (8 pasos sin CFG).
+**No probado con los pesos reales** (este entorno no tiene GPU); el código se
+comprueba en CI con un modelo diminuto (`validation/colab/smoke_test.py`).
 
 ## Parámetros
 
@@ -156,7 +172,9 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
 | `HF_TOKEN` | — (**obligatoria**) | Token *fine-grained* con permiso "Make calls to Inference Providers". Como **secreto**, nunca en el repo. |
 | `HF_MODEL` | `Qwen/Qwen-Image-Edit` | Id del modelo o URL de un Inference Endpoint. SDXL (el valor anterior) no lo sirve ningún proveedor para image-to-image. |
 | `HF_PROVIDER` | `auto` | Proveedor (`auto`, `fal-ai`, `replicate`, `hf-inference`…). |
-| `HF_STEPS` / `HF_GUIDANCE_SCALE` | `30` / `7.0` | Pasos de difusión y adherencia al texto. |
+| `GEN_BACKEND` | `api` | `api` (Inference Providers de HF) o `diffusers` (GPU propia, `local_qwen.py`). |
+| `HF_STEPS` / `HF_GUIDANCE_SCALE` | `30` / `4.0` | Pasos y guía (`true_cfg_scale` en Qwen). |
+| `QWEN_QUANT` / `QWEN_LIGHTNING` / `QWEN_DTYPE` | `nf4` / `0` / `auto` | Solo con `GEN_BACKEND=diffusers`. |
 | `HF_TIMEOUT_SECONDS` | `120` | Espera máxima al proveedor. |
 | `ALLOWED_ORIGINS` | `https://homeai.juancopado.chatgpt.site` | Orígenes CORS permitidos, separados por comas. |
 | `RATE_LIMIT_PER_HOUR` | `10` | Generaciones por IP y hora (en memoria, una sola réplica). |
@@ -167,8 +185,9 @@ foto + máscara + estilo ─► POST /api/renovate ─► modelo (imagen entera)
 | `STYLE_MODEL` | `openai/clip-vit-large-patch14` | Modelo de detección de estilo. |
 | `STYLE_MIN_PROB` / `STYLE_MIN_MARGIN` | `0.5` / `0.2` | Umbral para afirmar un estilo (validado). |
 | `STYLE_RATE_LIMIT_PER_HOUR` | `30` | Límite propio de la detección de estilo. |
-| `VARIANTS_MAX` | `3` | Máximo de versiones por petición. |
-| `QUALITY_MIN_SCORE` / `QUALITY_MIN_CHANGE` | `0.5` / `0.11` | Umbrales de descarte (ver calibración). |
+| `VARIANTS_MAX` | `2` | Máximo de versiones por petición (tope fijo 2). |
+| `SIMILARITY_MAX` | `0.89` | Por encima, «casi idéntica» al original: se descarta y se regenera una vez. |
+| `QUALITY_MIN_SCORE` | `0.5` | Nota mínima del puntuador (ver calibración). |
 | `AESTHETIC_WEIGHTS_URL` | GitHub de improved-aesthetic-predictor | Pesos del predictor estético (se descargan al construir la imagen). |
 
 ## Desplegar en un Hugging Face Space (recomendado para la fase 1)
@@ -238,8 +257,8 @@ en huggingface.co/pricing antes de lanzar**, cambia a menudo):
 
 ## Límites conocidos de la fase 1
 
-- img2img no garantiza la geometría: con `strength` alto puede mover ventanas
-  o inventar muebles. El texto de la tarjeta lo advierte. ControlNet, en la
+- Ningún modelo generativo garantiza la geometría: con intensidad alta puede
+  mover ventanas o inventar muebles. El texto de la tarjeta lo advierte. ControlNet, en la
   fase 2.
 - El límite por IP vive en memoria: se reinicia al reiniciar el Space y no se
   comparte entre réplicas.

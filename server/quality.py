@@ -9,13 +9,15 @@ Dos señales sobre el mismo CLIP large/14 que ya usa la detección de estilo
 - realism: CLIP zero-shot, probabilidad de "foto nítida y realista de una
   habitación" frente a "imagen distorsionada, borrosa o con artefactos" (0-1).
 
-- change (solo si se pasa el original): 1 - similitud coseno entre los
-  embeddings CLIP de la variante y del original. Detecta variantes en las que
-  el modelo "no hizo nada": la diferencia de píxeles no sirve (una variante
-  solo más luminosa movía 44 niveles de media, casi como una reforma real).
-
 score = aesthetic normalizada (0-1) * 0,5 + realism * 0,5. Umbrales de
 descarte calibrados en server/validation/check_quality.py.
+
+Aparte, similarity(): similitud coseno entre los embeddings CLIP de la
+variante y del original. Se calcula ANTES de puntuar (app.py) para descartar o
+regenerar variantes en las que el modelo "no hizo nada" sin gastar el
+puntuador en ellas. La diferencia de píxeles o un hash perceptual no sirven:
+una variante solo más luminosa movía 44 niveles de media, casi como una
+reforma real, y CLIP sí la reconoce como la misma imagen.
 """
 
 from __future__ import annotations
@@ -64,27 +66,21 @@ class _Scorer:
             pooled = self.model.vision_model(pixel_values=pix).pooler_output
             return torch.nn.functional.normalize(self.model.visual_projection(pooled), dim=-1)
 
-    def __call__(self, img: Image.Image, original: Image.Image | None = None, box=None) -> dict:
+    def similarity(self, img: Image.Image, original: Image.Image, box=None) -> float:
+        if box is not None:
+            # Con zonas: se compara el recorte de la zona elegida, no la imagen
+            # entera (si solo cambia el suelo, la imagen entera apenas "cambia").
+            img, original = img.crop(box), original.crop(box)
+        return float((self.embed(img) @ self.embed(original).T)[0, 0])
+
+    def __call__(self, img: Image.Image) -> dict:
         torch = self.torch
         with torch.no_grad():
-            emb = self.embed(img)
-            aesthetic = float(self.mlp(emb)[0, 0])
+            aesthetic = float(self.mlp(self.embed(img))[0, 0])
             inputs = self.proc(text=self.texts, images=img.convert("RGB"), return_tensors="pt", padding=True)
             realism = float(self.model(**inputs).logits_per_image.softmax(dim=-1)[0][0])
-            if original is None:
-                change = None
-            elif box is None:
-                change = float(1 - (emb @ self.embed(original).T)[0, 0])
-            else:
-                # Con zonas: el cambio se mide en el recorte de la zona elegida,
-                # no en la imagen entera (si solo cambia el suelo, la imagen
-                # entera apenas "cambia" y se descartaría por error).
-                change = float(1 - (self.embed(img.crop(box)) @ self.embed(original.crop(box)).T)[0, 0])
         a_norm = min(1.0, max(0.0, (aesthetic - 3.0) / 4.0))  # ~3 → 0, ~7 → 1
-        out = {"aesthetic": round(aesthetic, 3), "realism": round(realism, 3), "score": round(0.5 * a_norm + 0.5 * realism, 3)}
-        if change is not None:
-            out["change"] = round(change, 4)
-        return out
+        return {"aesthetic": round(aesthetic, 3), "realism": round(realism, 3), "score": round(0.5 * a_norm + 0.5 * realism, 3)}
 
 
 _scorer = None
@@ -99,5 +95,10 @@ def load_scorer():
     return _scorer
 
 
-def score(img: Image.Image, original: Image.Image | None = None, box=None) -> dict:
-    return load_scorer()(img, original, box)
+def score(img: Image.Image) -> dict:
+    return load_scorer()(img)
+
+
+def similarity(img: Image.Image, original: Image.Image, box=None) -> float:
+    """1,0 = misma imagen para CLIP. Antes era change = 1 - similarity."""
+    return round(load_scorer().similarity(img, original, box), 4)

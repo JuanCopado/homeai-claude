@@ -10,7 +10,8 @@ ENV HF_HOME=/app/.cache/huggingface
 COPY segmentation.py style.py quality.py ./
 # Descarga los modelos (segmentación, estilo y cabeza estética) al construir, no en la primera petición.
 RUN python -c "import segmentation as s, style as st, quality as q; s.load_segmenter(); st.load_classifier(); q.load_scorer()" && chown -R app /app/.cache
-COPY app.py .
+# local_qwen.py (GEN_BACKEND=diffusers) no se copia: esta imagen es CPU y usa la API.
+COPY pipeline.py app.py ./
 USER app
 ENV PORT=7860
 EXPOSE 7860

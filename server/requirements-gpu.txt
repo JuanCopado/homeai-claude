@@ -1,0 +1,15 @@
+# Solo para GEN_BACKEND=diffusers (Qwen-Image-Edit en una GPU propia, local_qwen.py)
+# o el notebook de Colab. El servicio normal (API de Hugging Face) no lo necesita.
+# Se instala ADEMÁS de requirements.txt pero con torch CUDA (no el índice CPU de
+# requirements.txt): pip install torch torchvision && pip install -r requirements-gpu.txt
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.9
+huggingface_hub>=1.0,<3
+Pillow>=10.4,<13
+numpy>=1.26
+transformers>=4.51
+diffusers>=0.35
+accelerate>=1.0
+bitsandbytes>=0.46
+peft>=0.17
