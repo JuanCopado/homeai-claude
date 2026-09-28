@@ -165,89 +165,95 @@ def run(out_dir: str | Path = "qa_qwen", jobs=None, variants: int = 2, lightning
         j["prompt"] = pipeline.build_prompt(j["style"], [], j["strength"], edit=True)
         log(f"foto {j['n']:02d} {j['image'].size}")
 
-    # 1. Codificar (Qwen2.5-VL)
-    t0 = time.perf_counter()
-    text = loaders.get("text", lambda: local_qwen.load(parts="text", quant=quant, lightning=False))()
-    for j in jobs:
-        j["emb"] = local_qwen.encode(text, j["image"], j["prompt"], pipeline.DEFAULT_NEGATIVE)
-    data["encode_seconds"] = round(time.perf_counter() - t0, 1)
-    data["vram_text_gb"] = _vram()
-    del text
-    _free()
-    log(f"codificado en {data['encode_seconds']} s")
-    if free_disk:
-        log(f"caché del codificador borrada: {drop_cache(local_qwen.MODEL, 'text_encoder')} GB")
-
-    # 2. Generar + filtro de similitud + regenerar las casi idénticas
-    t0 = time.perf_counter()
+    # Si algo falla a mitad (memoria, desconexión del modelo...), se escribe
+    # igualmente el informe con lo que se haya medido hasta ese momento.
     try:
-        editor = loaders.get("image", lambda: local_qwen.load(parts="image", quant=quant, lightning=lightning))()
-    except Exception as exc:  # noqa: BLE001 - sin LoRA se puede seguir, más lento
-        if not lightning:
-            raise
-        data["errors"].append(f"LoRA Lightning no cargó ({type(exc).__name__}: {exc}); se sigue sin ella")
-        lightning, true_cfg, steps = False, 4.0, 30
-        data["config"].update(lightning=False, true_cfg=true_cfg, steps=steps)
+        # 1. Codificar (Qwen2.5-VL)
+        t0 = time.perf_counter()
+        text = loaders.get("text", lambda: local_qwen.load(parts="text", quant=quant, lightning=False))()
+        for j in jobs:
+            j["emb"] = local_qwen.encode(text, j["image"], j["prompt"], pipeline.DEFAULT_NEGATIVE)
+        data["encode_seconds"] = round(time.perf_counter() - t0, 1)
+        data["vram_text_gb"] = _vram()
+        del text
         _free()
-        editor = local_qwen.load(parts="image", quant=quant, lightning=False)
-    data["load_image_seconds"] = round(time.perf_counter() - t0, 1)
-    seed = 1000
+        log(f"codificado en {data['encode_seconds']} s")
+        if free_disk:
+            log(f"caché del codificador borrada: {drop_cache(local_qwen.MODEL, 'text_encoder')} GB")
 
-    def gen(j):
-        nonlocal seed
-        seed += 1
-        t = time.perf_counter()
+        # 2. Generar + filtro de similitud + regenerar las casi idénticas
+        t0 = time.perf_counter()
         try:
-            img = local_qwen.render(editor, j["image"], j["emb"], steps, true_cfg, seed)
-        except Exception as exc:  # noqa: BLE001
-            data["errors"].append(f"foto {j['n']:02d}: {type(exc).__name__}: {exc}")
-            log(traceback.format_exc())
+            editor = loaders.get("image", lambda: local_qwen.load(parts="image", quant=quant, lightning=lightning))()
+        except Exception as exc:  # noqa: BLE001 - sin LoRA se puede seguir, más lento
+            if not lightning:
+                raise
+            data["errors"].append(f"LoRA Lightning no cargó ({type(exc).__name__}: {exc}); se sigue sin ella")
+            lightning, true_cfg, steps = False, 4.0, 30
+            data["config"].update(lightning=False, true_cfg=true_cfg, steps=steps)
             _free()
-            return None
-        img = img.convert("RGB").resize(j["image"].size, Image.LANCZOS)
-        v = {"image": img, "seconds": round(time.perf_counter() - t, 1), "seed": seed, "broken": broken(img)}
-        log(f"  foto {j['n']:02d} semilla {seed}: {v['seconds']} s" + (f" ⚠️ {v['broken']}" if v["broken"] else ""))
-        return v
+            editor = local_qwen.load(parts="image", quant=quant, lightning=False)
+        data["load_image_seconds"] = round(time.perf_counter() - t0, 1)
+        seed = 1000
 
-    for j in jobs:
-        vs = [v for v in (gen(j) for _ in range(variants)) if v]
-        pipeline.check_similarity(vs, j["image"], None, max_similarity)
-        same = [v for v in vs if v.get("reason") == "sin_cambios"]
-        more = [v for v in (gen(j) for _ in same) if v]
-        pipeline.check_similarity(more, j["image"], None, max_similarity)
-        for v in more:
-            v["regenerated"] = True
-        j["variants"] = vs + more
-    data["generate_seconds"] = round(time.perf_counter() - t0, 1)
-    data["vram_image_gb"] = _vram()
-    editor = None  # noqa: F841 - libera la GPU antes de SDXL
-    _free()
-    if free_disk and sdxl:
-        log(f"caché del transformer borrada: {drop_cache(local_qwen.MODEL, 'transformer')} GB")
+        def gen(j):
+            nonlocal seed
+            seed += 1
+            t = time.perf_counter()
+            try:
+                img = local_qwen.render(editor, j["image"], j["emb"], steps, true_cfg, seed)
+            except Exception as exc:  # noqa: BLE001
+                data["errors"].append(f"foto {j['n']:02d}: {type(exc).__name__}: {exc}")
+                log(traceback.format_exc())
+                _free()
+                return None
+            img = img.convert("RGB").resize(j["image"].size, Image.LANCZOS)
+            v = {"image": img, "seconds": round(time.perf_counter() - t, 1), "seed": seed, "broken": broken(img)}
+            log(f"  foto {j['n']:02d} semilla {seed}: {v['seconds']} s" + (f" ⚠️ {v['broken']}" if v["broken"] else ""))
+            return v
 
-    # 3. Puntuador, solo sobre las que pasaron el filtro
-    for j in jobs:
-        pipeline.score_variants(j["variants"], min_score)
-        if j["variants"]:
-            j["best"] = pipeline.pick_best(j["variants"])
+        for j in jobs:
+            vs = [v for v in (gen(j) for _ in range(variants)) if v]
+            pipeline.check_similarity(vs, j["image"], None, max_similarity)
+            same = [v for v in vs if v.get("reason") == "sin_cambios"]
+            more = [v for v in (gen(j) for _ in same) if v]
+            pipeline.check_similarity(more, j["image"], None, max_similarity)
+            for v in more:
+                v["regenerated"] = True
+            j["variants"] = vs + more
+        data["generate_seconds"] = round(time.perf_counter() - t0, 1)
+        data["vram_image_gb"] = _vram()
+        editor = None  # noqa: F841 - libera la GPU antes de SDXL
+        _free()
+        if free_disk and sdxl:
+            log(f"caché del transformer borrada: {drop_cache(local_qwen.MODEL, 'transformer')} GB")
 
-    # 4. Referencia SDXL (misma foto, prompt y strength del pipeline antiguo)
-    if sdxl:
-        try:
-            ref = loaders.get("sdxl", _load_sdxl)()
-            import quality
+        # 3. Puntuador, solo sobre las que pasaron el filtro
+        for j in jobs:
+            pipeline.score_variants(j["variants"], min_score)
+            if j["variants"]:
+                j["best"] = pipeline.pick_best(j["variants"])
 
-            for j in jobs:
-                t = time.perf_counter()
-                img = ref(prompt=pipeline.build_prompt(j["style"], [], edit=False), negative_prompt=pipeline.DEFAULT_NEGATIVE,
-                          image=j["image"], strength=j["strength"], num_inference_steps=30, guidance_scale=7.0).images[0]
-                img = img.convert("RGB").resize(j["image"].size, Image.LANCZOS)
-                j["sdxl"] = {"image": img, "seconds": round(time.perf_counter() - t, 1),
-                             "similarity": quality.similarity(img, j["image"]), **quality.score(img)}
-            del ref
-            _free()
-        except Exception as exc:  # noqa: BLE001
-            data["errors"].append(f"SDXL: {type(exc).__name__}: {exc}")
+        # 4. Referencia SDXL (misma foto, prompt y strength del pipeline antiguo)
+        if sdxl:
+            try:
+                ref = loaders.get("sdxl", _load_sdxl)()
+                import quality
+
+                for j in jobs:
+                    t = time.perf_counter()
+                    img = ref(prompt=pipeline.build_prompt(j["style"], [], edit=False), negative_prompt=pipeline.DEFAULT_NEGATIVE,
+                              image=j["image"], strength=j["strength"], num_inference_steps=30, guidance_scale=7.0).images[0]
+                    img = img.convert("RGB").resize(j["image"].size, Image.LANCZOS)
+                    j["sdxl"] = {"image": img, "seconds": round(time.perf_counter() - t, 1),
+                                 "similarity": quality.similarity(img, j["image"]), **quality.score(img)}
+                del ref
+                _free()
+            except Exception as exc:  # noqa: BLE001
+                data["errors"].append(f"SDXL: {type(exc).__name__}: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        data["errors"].append(f"Parada: {type(exc).__name__}: {exc}")
+        log(traceback.format_exc())
 
     _write(out, jobs, data)
     data["jobs"] = jobs

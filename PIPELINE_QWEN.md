@@ -30,7 +30,9 @@ y una prueba pequeña (2-3 llamadas) contra la API real para el coste.
 - **Backend configurable:** `GEN_BACKEND=api` (por defecto) o `diffusers`
   (`server/local_qwen.py`, `QwenImageEditPipeline` en GPU propia, 4 bits
   opcional, LoRA Lightning opcional).
-- **Notebook de Colab** (`server/validation/colab/qwen_edit_colab.ipynb`),
+- **Notebooks de medición** (`server/validation/colab/`): `qwen_edit_kaggle.ipynb`
+  (recomendado: se ejecuta en segundo plano hasta 12 h con «Save & Run All»; la
+  sesión gratuita de Colab se cortaba antes de terminar) y `qwen_edit_colab.ipynb`,
   generado desde el código del servidor para que QA mida exactamente lo que va
   a producción. CI comprueba que está sincronizado y lo ejecuta de punta a
   punta con un Qwen diminuto en CPU.
